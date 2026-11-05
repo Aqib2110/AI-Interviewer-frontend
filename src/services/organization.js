@@ -42,13 +42,16 @@ export const workspacesService = {
 };
 
 export const membersService = {
-  list(orgId) {
-    return respond(members.filter((m) => m.orgId === orgId));
+  list() {
+    return tenantRequest("/api/v1/organization/members",{
+      method:"GET"
+    })
   },
   updateRole(memberId, role) {
-    const m = members.find((x) => x.id === memberId);
-    m.role = role;
-    return respond(m, { latency: 500, mutation: true });
+    return tenantRequest("/api/v1/organization/member/role",{
+      method:"PUT",
+      body:JSON.stringify({memberId,role})
+    })
   },
   setStatus(memberId, status) {
     const m = members.find((x) => x.id === memberId);
@@ -56,21 +59,24 @@ export const membersService = {
     return respond(m, { latency: 500, mutation: true });
   },
   remove(memberId) {
-    const i = members.findIndex((x) => x.id === memberId);
-    members.splice(i, 1);
-    return respond(memberId, { latency: 500, mutation: true });
+    return tenantRequest("/api/v1/organization/member/role",{
+      method:"DELETE",
+      body:JSON.stringify({memberId})
+    })
   },
 };
 
 export const invitationsService = {
-  list(orgId) {
-    return respond(invitations.filter((i) => i.orgId === orgId));
+  list() {
+  return tenantRequest("/api/v1/organization/invitations",{
+      method:"GET",
+    })  
   },
-  invite({ email, role, orgId }) {
-    if (invitations.some((i) => i.email === email && i.status === "pending")) return reject(`${email} already has a pending invitation.`);
-    const inv = { id: uid("inv"), orgId, email, role, status: "pending", invitedBy: "Hannah Reyes", sentAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 7 * 864e5).toISOString() };
-    invitations.unshift(inv);
-    return respond(inv, { latency: 700, mutation: true });
+  invite({ email, role }) {
+     return tenantRequest("/api/v1/organization/invitation",{
+      method:"POST",
+      body:JSON.stringify({email,role})
+    })
   },
   resend(id) {
     const inv = invitations.find((i) => i.id === id);

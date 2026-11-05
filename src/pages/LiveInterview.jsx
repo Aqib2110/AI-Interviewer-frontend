@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+
+import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/common/States";
@@ -12,6 +13,7 @@ export default function LiveInterviewPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
+  const [candidateInfoDone, setCandidateInfoDone] = useState(false);
   const isPublic = searchParams.get("isPublic") === "true";
 
   const {
@@ -25,12 +27,18 @@ export default function LiveInterviewPage() {
   );
 
   const interview = data?.report;
+  const tenantId = interview?.tenantId;
 
   useEffect(() => {
-    if (interview?.tenantId && !isPublic) {
+    if (tenantId && !isPublic) {
       navigate(`/interview/${id}?isPublic=true`, { replace: true });
     }
-  }, [interview?.tenantId, id, isPublic, navigate]);
+  }, [tenantId, id, isPublic, navigate]);
+
+  const handleCandidateInfoDone = async () => {
+    await reload();
+    setCandidateInfoDone(true);
+  };
 
   if (loading) {
     return (
@@ -64,12 +72,14 @@ export default function LiveInterviewPage() {
     );
   }
 
-  if (interview.tenantId && !isPublic) 
-  {
+  if (interview.tenantId && !isPublic) {
     return null;
   }
 
-  if (interview.status === "COMPLETED" || interview.status === "COMPELETED") {
+  if (
+    interview.status === "COMPLETED" ||
+    interview.status === "COMPELETED"
+  ) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
         <div className="max-w-md text-center">
@@ -81,11 +91,15 @@ export default function LiveInterviewPage() {
       </div>
     );
   }
-  if(!interview?.candidate)
-    {
-     return (
+
+  if (!interview.interviewcandidate && !candidateInfoDone) {
+    return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
-             <CandidateInfoForm />
+        <CandidateInfoForm
+          isDone={handleCandidateInfoDone}
+          id={id}
+          tenantId={tenantId}
+        />
       </div>
     );
   }

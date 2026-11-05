@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { useRef } from "react";
+import { TalkingAvatarView } from "@interviewflowai/talking-avatar/react";
 
 // Emoji-style AI interviewer. `speaking` drives the talking loop; pass `level` (0–1) later to sync the mouth with real audio.
 export function AiAvatar({ speaking = false, level, size = 220, className, testId = "ai-avatar" }) {
@@ -63,6 +65,49 @@ export function AiAvatar({ speaking = false, level, size = 220, className, testI
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+export function Avatar({ stream }) {
+  console.log("[Avatar] Stream:", stream);
+  console.log("[Avatar] Active:", stream?.active);
+  console.log(
+    "[Avatar] Audio tracks:",
+    stream?.getAudioTracks()
+  );
+
+  return (
+    <div
+      style={{
+        width: "100%",
+        height: "100%"
+      }}
+    >
+      <TalkingAvatarView
+        avatarUrl="/male.glb"
+        stream={stream}
+        onError={(error) => {
+          console.error("[TalkingAvatarView]", error);
+        }}
+      />
+    </div>
+  );
+}
+
+
+
+
+
+
+
+
+
 
 export function SpeakingDots({ active, className }) {
   return (

@@ -16,7 +16,7 @@ export const NAVIGATION = {
       items: [
         { key: "members", label: "Members", to: "/app/members", icon: UserCog, roles:["HR"] },
         { key: "invitations", label: "Invitations", to: "/app/invitations", icon: MailPlus, roles:["HR"] },
-        { key: "settings", label: "Settings", to: "/app/settings", icon: Settings },
+        // { key: "settings", label: "Settings", to: "/app/settings", icon: Settings },
       ],
     },
   ],

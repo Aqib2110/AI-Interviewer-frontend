@@ -185,10 +185,12 @@ function Preview({ form }) {
   );
 }
 
+
 export default function NewInterviewPage() {
-  const { context, user,orgId, orgName  } = useSession();
+  const { context, user, orgId, orgName } = useSession();
   const navigate = useNavigate();
   const isOrg = context === "organization";
+
   const [form, setForm] = useState({
     title: "",
     role: "",
@@ -197,35 +199,86 @@ export default function NewInterviewPage() {
     skills: ["Node.js", "PostgreSQL"],
     candidateEmail: orgId ? "" : user.email,
     candidateName: "",
+    durationMinutes: 8,
   });
+
   const [errors, setErrors] = useState({});
   const [status, setStatus] = useState("idle");
   const [created, setCreated] = useState(null);
+
   const set = (k) => (e) =>
-    setForm((f) => ({ ...f, [k]: e?.target ? e.target.value : e }));
+    setForm((f) => ({
+      ...f,
+      [k]: e?.target ? e.target.value : e,
+    }));
 
   const submit = async (e) => {
     e.preventDefault();
+
     const err = {};
-    if (!form.title.trim()) err.title = "Give the interview a title.";
-    if (!form.role.trim()) err.role = "Which role is this interview for?";
-    if (!form.company.trim()) err.company = "Company name is required.";
-    if (form.skills.length < 2)
+
+    if (!form.title.trim()) {
+      err.title = "Give the interview a title.";
+    }
+
+    if (!form.role.trim()) {
+      err.role = "Which role is this interview for?";
+    }
+
+    if (!form.company.trim()) {
+      err.company = "Company name is required.";
+    }
+
+    if (form.skills.length < 2) {
       err.skills = "Add at least two skills to evaluate.";
-    if (!EMAIL.test(form.candidateEmail))
+    }
+
+    if (!EMAIL.test(form.candidateEmail)) {
       err.candidateEmail = "Enter a valid email address.";
+    }
+
+    if (
+      !Number.isInteger(form.durationMinutes) ||
+      form.durationMinutes < 1 ||
+      form.durationMinutes > 8
+    ) {
+      err.durationMinutes = "Duration must be between 1 and 8 minutes.";
+    }
+
     setErrors(err);
+
     if (Object.keys(err).length) return;
-    setStatus("loading");
-    const iv = await interviewsService.create(form, context);
-    setCreated(iv);
-    setStatus("success");
-    toast.success("Interview created", {
-      description: `Invitation sent to ${form.candidateEmail}`,
-    });
+
+    try {
+      setStatus("loading");
+
+      const iv = await interviewsService.create(
+        {
+          ...form,
+          durationMinutes: Math.min(
+            8,
+            Math.max(1, Number(form.durationMinutes))
+          ),
+        },
+        context
+      );
+
+      setCreated(iv);
+      setStatus("success");
+
+      toast.success("Interview created", {
+        description: `Invitation sent to ${form.candidateEmail}`,
+      });
+    } catch (error) {
+      setStatus("idle");
+
+      toast.error(
+        error?.message || "Failed to create interview. Please try again."
+      );
+    }
   };
 
-  if (status === "success")
+  if (status === "success") {
     return (
       <div
         className="mx-auto max-w-xl rounded-xl border border-slate-200 bg-white"
@@ -233,20 +286,24 @@ export default function NewInterviewPage() {
       >
         <SuccessState
           title="Interview created"
-          description={`${created?.title} is ready. We've emailed the interview link to ${created?.candidate?.email}.`}
+          description={`${created?.title} is ready. We've emailed the interview link to ${
+            created?.candidate?.email || form.candidateEmail
+          }.`}
         >
           <Button
             variant="outline"
             onClick={() => {
-              navigator.clipboard?.writeText(
-                `https://intervia.app/i/${created.id}`,
-              );
+              const link = `https://intervia.app/i/${created.id}`;
+
+              navigator.clipboard?.writeText(link);
               toast.success("Link copied");
             }}
             data-testid="copy-new-interview-link"
           >
-            <Copy className="mr-1.5 h-4 w-4" /> Copy link
+            <Copy className="mr-1.5 h-4 w-4" />
+            Copy link
           </Button>
+
           <Button
             onClick={() => navigate(`/app/interviews/${created.id}`)}
             data-testid="view-new-interview-button"
@@ -256,18 +313,16 @@ export default function NewInterviewPage() {
         </SuccessState>
       </div>
     );
+  }
 
   return (
-    // <Restricted
-    //   perm="interview:create"
-    //   title="Only Admins and HR can create interviews"
-    // >
     <>
       <PageHeader
         eyebrow={orgName || "Personal"}
         title="New interview"
         description="Define the role and required skills. The AI interviewer structures every question around them."
       />
+
       <form
         onSubmit={submit}
         className="grid gap-6 xl:grid-cols-[1fr_380px]"
@@ -295,6 +350,7 @@ export default function NewInterviewPage() {
                 />
               </Field>
             </div>
+
             <Field label="Role" error={errors.role} htmlFor="role">
               <Input
                 id="role"
@@ -304,6 +360,7 @@ export default function NewInterviewPage() {
                 data-testid="new-interview-role-input"
               />
             </Field>
+
             <Field
               label="Company name"
               error={errors.company}
@@ -316,6 +373,7 @@ export default function NewInterviewPage() {
                 data-testid="new-interview-company-input"
               />
             </Field>
+
             <div className="md:col-span-2">
               <Field
                 label="Description"
@@ -333,6 +391,7 @@ export default function NewInterviewPage() {
               </Field>
             </div>
           </Panel>
+
           <Panel
             title="Required skills"
             description="Each skill is evaluated and scored individually"
@@ -345,30 +404,83 @@ export default function NewInterviewPage() {
               />
             </Field>
           </Panel>
-         { isOrg &&  <Panel
-            title="Candidate"
-            description={
-              isOrg
-                ? "We'll email a private interview link"
-                : "Practice interviews are sent to your own email"
-            }
-            bodyClassName="grid gap-5 md:grid-cols-2"
+
+          <Panel
+            title="Interview duration"
+            description="Choose how long the AI interview should last."
           >
-          <Field
-              label="Candidate email"
-              error={errors.candidateEmail}
-              htmlFor="email"
+            <div className="space-y-5">
+              <div className="flex items-center justify-between">
+                <label
+                  htmlFor="duration"
+                  className="text-sm font-medium text-slate-700"
+                >
+                  Duration
+                </label>
+
+                <span className="rounded-md bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-900">
+                  {form.durationMinutes}{" "}
+                  {form.durationMinutes === 1 ? "minute" : "minutes"}
+                </span>
+              </div>
+
+              <input
+                id="duration"
+                type="range"
+                min={1}
+                max={8}
+                step={1}
+                value={form.durationMinutes}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    durationMinutes: Number(e.target.value),
+                  }))
+                }
+                className="w-full cursor-pointer accent-black"
+                aria-label="Interview duration in minutes"
+                data-testid="interview-duration-slider"
+              />
+
+
+              {errors.durationMinutes && (
+                <p className="text-sm text-red-600">
+                  {errors.durationMinutes}
+                </p>
+              )}
+
+              <p className="text-sm text-slate-500">
+                Select between 1 and 8 minutes. The interview cannot exceed
+                8 minutes.
+              </p>
+            </div>
+          </Panel>
+
+          {isOrg && (
+            <Panel
+              title="Candidate"
+              description="We'll email a private interview link"
+              bodyClassName="grid gap-5 md:grid-cols-2"
             >
-               <Input
-                id="email"
-                type="email"
-                value={form.candidateEmail}
-                onChange={set("candidateEmail")}
-                placeholder="name@email.com"
-                data-testid="new-interview-candidate-email-input"
-              /> 
-            </Field>
-              <Field label="Candidate name (optional)" htmlFor="cname">
+              <Field
+                label="Candidate email"
+                error={errors.candidateEmail}
+                htmlFor="email"
+              >
+                <Input
+                  id="email"
+                  type="email"
+                  value={form.candidateEmail}
+                  onChange={set("candidateEmail")}
+                  placeholder="name@email.com"
+                  data-testid="new-interview-candidate-email-input"
+                />
+              </Field>
+
+              <Field
+                label="Candidate name (optional)"
+                htmlFor="cname"
+              >
                 <Input
                   id="cname"
                   value={form.candidateName}
@@ -377,13 +489,14 @@ export default function NewInterviewPage() {
                   data-testid="new-interview-candidate-name-input"
                 />
               </Field>
-            
-          </Panel>
-          }
+            </Panel>
+          )}
+
           <div className="flex items-center justify-end gap-2">
             <Button type="button" variant="ghost" asChild>
               <Link to="/app/interviews">Cancel</Link>
             </Button>
+
             <Button
               type="submit"
               disabled={status === "loading"}
@@ -391,18 +504,19 @@ export default function NewInterviewPage() {
             >
               {status === "loading" ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating…
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating…
                 </>
               ) : (
-                `Create ${isOrg ? "& send" : ""
-                 }  interview`
+                `Create ${isOrg ? "& send" : ""} interview`
               )}
             </Button>
           </div>
         </div>
+
         <Preview form={form} />
       </form>
-    {/* </Restricted> */}
     </>
   );
 }
+

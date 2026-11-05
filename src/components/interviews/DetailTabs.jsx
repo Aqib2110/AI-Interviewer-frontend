@@ -596,7 +596,7 @@ import {
 import { formatClock, scoreTone } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-const getInterview = (detail = {}) => detail?.interview || {};
+const getInterview = (detail = {}) => detail || {};
 
 const getCandidate = (detail = {}) => {
   const interview = getInterview(detail);
@@ -1444,32 +1444,30 @@ export function RecordingTab({
   isOrganization,
 }) {
   const interview = getInterview(detail);
-  const recording = detail?.recording || null;
+  console.log("intervide,",interview)
   const organizationView =
     isOrganization ?? context === "organization";
 
-  if (!recording?.url) {
+  const videoKey = interview?.videoKey || detail?.videoKey || null;
+
+  // The interview object contains videoKey as a string.
+  // Use the interview object for recording metadata.
+  const recording = videoKey
+    ? {
+        ...interview,
+        videoKey,
+        status: interview?.status || "Available",
+      }
+    : null;
+
+  if (!recording) {
     return (
       <div className="space-y-4">
         {organizationView && (
-          <NotReady
-            interview={interview}
-            what="recording"
-          />
+          <NotReady interview={interview} what="recording" />
         )}
 
-        {interview?.videoKey && (
-          <Panel
-            title="Recording storage"
-            description="A recording storage key exists, but a playable URL has not been provided."
-          >
-            <p className="break-all text-sm text-slate-600">
-              {interview.videoKey}
-            </p>
-          </Panel>
-        )}
-
-        {!organizationView && !interview?.videoKey && (
+        {!organizationView && (
           <EmptyState
             icon={Video}
             title="No recording available"
@@ -1485,11 +1483,18 @@ export function RecordingTab({
   return (
     <div className="grid gap-5 xl:grid-cols-[1fr_300px]">
       <div className="space-y-3">
-        <VideoPlayer
-          recording={recording}
-          candidateName={getCandidateName(detail)}
-          onExpand={onOpenVideo}
-        />
+       <VideoPlayer
+  recording={{
+    videoUrl: interview.videoUrl,
+    videoKey: interview.videoKey,
+    status: interview.status,
+    durationSec: interview.durationSec,
+    markers: interview.markers ?? [],
+  }}
+  candidateName={getCandidateName(detail)}
+   durationMinutes={interview.durationMinutes}
+  onExpand={onOpenVideo}
+/>
 
         <Button onClick={() => onOpenVideo(0)}>
           <Play className="mr-2 h-4 w-4" />
@@ -1512,7 +1517,7 @@ export function RecordingTab({
             ],
             [
               "File size",
-              recording?.sizeMb
+              recording?.sizeMb != null
                 ? `${recording.sizeMb} MB`
                 : "—",
             ],

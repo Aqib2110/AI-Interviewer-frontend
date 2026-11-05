@@ -33,6 +33,9 @@ export function InterviewDetail({ id, onBack }) {
     [id, context]
   );
 
+
+  console.log(data,"data");
+
   const [tab, setTab] = useState("overview");
   const [video, setVideo] = useState({ open: false, at: 0 });
   const [resumeOpen, setResumeOpen] = useState(false);

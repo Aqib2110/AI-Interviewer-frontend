@@ -1,36 +1,106 @@
-import { ArrowLeft, Mail, Phone, MapPin, Briefcase, CalendarDays, Clock, FileText, Share2, ChevronDown, CheckCircle2, PauseCircle, XCircle } from "lucide-react";
+import {
+  ArrowLeft,
+  Phone,
+  MapPin,
+  Briefcase,
+  CalendarDays,
+  Clock,
+  FileText,
+  Share2,
+  ChevronDown,
+  CheckCircle2,
+  PauseCircle,
+  XCircle,
+} from "lucide-react";
+
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
 import { Avatar } from "@/components/common/Avatar";
-import { StatusBadge, RecommendationBadge } from "@/components/common/Badges";
+import {
+  StatusBadge,
+  RecommendationBadge,
+} from "@/components/common/Badges";
 import { ScoreRing } from "@/components/common/ScoreRing";
 import { KeyValue } from "@/components/common/Layout";
 import { useSession } from "@/context/SessionContext";
-import { formatDate, formatTime } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { useNavigate } from "react-router-dom";
 
 function DecisionMenu({ name }) {
   const { can } = useSession();
   const allowed = can("decision:record");
-  const decide = (label) => toast.success(`${name}: ${label}`, { description: "Decision saved to this demo session." });
-  if (!allowed)
+
+  const decide = (label) =>
+    toast.success(`${name}: ${label}`, {
+      description: "Decision saved to this demo session.",
+    });
+
+  if (!allowed) {
     return (
       <Tooltip>
-        <TooltipTrigger asChild><span><Button size="sm" disabled data-testid="record-decision-button">Record decision</Button></span></TooltipTrigger>
-        <TooltipContent>Viewers can't record hiring decisions</TooltipContent>
+        <TooltipTrigger asChild>
+          <span>
+            <Button
+              size="sm"
+              disabled
+              data-testid="record-decision-button"
+            >
+              Record decision
+            </Button>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>
+          Viewers can't record hiring decisions
+        </TooltipContent>
       </Tooltip>
     );
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button size="sm" data-testid="record-decision-button">Record decision <ChevronDown className="ml-1.5 h-3.5 w-3.5" /></Button>
+        <Button size="sm" data-testid="record-decision-button">
+          Record decision
+          <ChevronDown className="ml-1.5 h-3.5 w-3.5" />
+        </Button>
       </DropdownMenuTrigger>
+
       <DropdownMenuContent align="end" className="w-52">
-        <DropdownMenuItem onClick={() => decide("advanced to next round")} data-testid="decision-advance"><CheckCircle2 className="mr-2 h-4 w-4 text-emerald-600" /> Advance to next round</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => decide("placed on hold")} data-testid="decision-hold"><PauseCircle className="mr-2 h-4 w-4 text-amber-600" /> Put on hold</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => decide("rejected")} data-testid="decision-reject"><XCircle className="mr-2 h-4 w-4 text-rose-600" /> Reject</DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => decide("advanced to next round")}
+          data-testid="decision-advance"
+        >
+          <CheckCircle2 className="mr-2 h-4 w-4 text-emerald-600" />
+          Advance to next round
+        </DropdownMenuItem>
+
+        <DropdownMenuItem
+          onClick={() => decide("placed on hold")}
+          data-testid="decision-hold"
+        >
+          <PauseCircle className="mr-2 h-4 w-4 text-amber-600" />
+          Put on hold
+        </DropdownMenuItem>
+
+        <DropdownMenuItem
+          onClick={() => decide("rejected")}
+          data-testid="decision-reject"
+        >
+          <XCircle className="mr-2 h-4 w-4 text-rose-600" />
+          Reject
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -56,7 +126,9 @@ export function CandidateHeader({
   };
 
   const candidateName = isOrganization
-    ? interview?.candidate?.name || interview?.candidateName || "Candidate"
+    ? interview?.interviewcandidate?.name ||
+      user?.name ||
+      "Candidate"
     : user?.name || "My Interview";
 
   const candidateEmail = isOrganization
@@ -131,10 +203,10 @@ export function CandidateHeader({
                   </span>
                 )}
 
-                {interview?.durationMin > 0 && (
+                {interview?.durationMinutes > 0 && (
                   <span className="inline-flex items-center gap-1.5">
                     <Clock className="h-4 w-4 text-slate-400" />
-                    {interview.durationMin} min
+                    {interview.durationMinutes} min
                   </span>
                 )}
               </div>
@@ -161,6 +233,7 @@ export function CandidateHeader({
               <p className="text-sm font-medium text-slate-600">
                 Overall score
               </p>
+
               <p className="mt-1 text-xs text-slate-400">
                 {interview?.Report?.content?.overallScore != null
                   ? "Interview evaluation"
@@ -187,21 +260,25 @@ export function CandidateHeader({
         {isOrganization && (
           <dl className="mt-6 grid grid-cols-2 gap-x-5 gap-y-5 border-t border-slate-100 pt-5 sm:grid-cols-3 xl:grid-cols-4">
             <KeyValue label="Phone" icon={Phone}>
-              {interview?.candidate?.phone || interview?.phone || "—"}
+              {interview?.interviewcandidate?.phone ||
+                interview?.phone ||
+                "—"}
             </KeyValue>
 
             <KeyValue label="Location" icon={MapPin}>
-              {interview?.candidate?.location || interview?.location || "—"}
+              {interview?.interviewcandidate?.location ||
+                interview?.location ||
+                "—"}
             </KeyValue>
 
             <KeyValue label="Experience" icon={Briefcase}>
-              {interview?.candidate?.experience ||
+              {interview?.interviewcandidate?.experience ||
                 interview?.experience ||
                 "—"}
             </KeyValue>
 
             <KeyValue label="Current role" icon={Briefcase}>
-              {interview?.candidate?.currentTitle ||
+              {interview?.interviewcandidate?.currRole ||
                 interview?.currentTitle ||
                 "—"}
             </KeyValue>
@@ -240,7 +317,6 @@ export function CandidateHeader({
             onClick={startInterview}
             data-testid="start-interview-button"
           >
-            {/* <Video className="mr-1.5 h-3.5 w-3.5" /> */}
             Start interview
           </Button>
         )}
@@ -260,7 +336,7 @@ export function CandidateHeader({
         {isOrganization && interviewStatus === "COMPLETED" && (
           <DecisionMenu
             name={
-              interview?.candidate?.name ||
+              interview?.interviewcandidate?.name ||
               interview?.candidateName ||
               "Candidate"
             }

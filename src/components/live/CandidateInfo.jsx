@@ -1,5 +1,5 @@
 
-import { interviewsService } from "@/services";
+import { candidatesService } from "@/services";
 import { useState } from "react";
 
 const initialForm = {
@@ -11,7 +11,7 @@ const initialForm = {
   currRole: "",
 };
 
-export function CandidateInfoForm({ isDone }) {
+export function CandidateInfoForm({ isDone,id,tenantId }) {
   const [form, setForm] = useState(initialForm);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
@@ -32,11 +32,11 @@ export function CandidateInfoForm({ isDone }) {
       nextErrors.name = "Name is required";
     }
 
-    if (!form.email.trim()) {
-      nextErrors.email = "Email is required";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
-      nextErrors.email = "Enter a valid email";
-    }
+    // if (!form.email.trim()) {
+    //   nextErrors.email = "Email is required";
+    // } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+    //   nextErrors.email = "Enter a valid email";
+    // }
 
     if (!form.experience.trim()) {
       nextErrors.experience = "Experience is required";
@@ -62,14 +62,13 @@ export function CandidateInfoForm({ isDone }) {
       const payload = {
         ...form,
         name: form.name.trim(),
-        email: form.email.trim(),
         location: form.location.trim(),
         experience: form.experience.trim(),
         phone: form.phone.trim(),
         currRole: form.currRole.trim(),
       };
 
-      await interviewsService.candidateInfo(payload);
+      await candidatesService.createCandidate(payload,id,tenantId);
 
       isDone(true);
     } catch (error) {
@@ -88,13 +87,6 @@ export function CandidateInfoForm({ isDone }) {
       name: "name",
       label: "Full name",
       placeholder: "e.g. Muhammad Aqib",
-      required: true,
-    },
-    {
-      name: "email",
-      label: "Email address",
-      placeholder: "you@example.com",
-      type: "email",
       required: true,
     },
     {

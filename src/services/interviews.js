@@ -48,14 +48,16 @@ export const interviewsService = {
     method:"GET"
    })
   },
-  saveExchange(interviewId,slug,aiMsg,userMsg,organizationId,isPublic=false)
+  saveExchange({interviewId,slug,aiMsg,userMsg,organizationId,isPublic=false})
   {
-    if(!isPublic)
+    console.log(interviewId,slug,aiMsg,userMsg,organizationId,isPublic=false,".......567")
+    if(!isPublic && !organizationId)
     {
     return authenticatedRequest("/api/v1/user/interview/message",{
     method:"POST",
     body:JSON.stringify({interviewId,aiMsg,userMsg}) })
     }
+    console.log("reach");
     return publicRequest("/api/v1/organization/interview/message",{
     method:"POST",
     body:JSON.stringify({organizationId,
@@ -79,6 +81,24 @@ export const interviewsService = {
    })
   
   },
+  startInterviewUpload(interviewId,organizationId){
+    return publicRequest("/api/v1/interview/upload/start",{
+      method:"POST",
+      body:JSON.stringify({interviewId})
+    })
+  },
+  getInterviewVideoUrls(interviewId, uploadId, startPart, count){
+   return publicRequest("/api/v1/interview/video/sign-url",{
+    method:"POST",
+    body:JSON.stringify({interviewId, uploadId, startPart, count})
+   })
+  },
+   InterviewVideoComplete(interviewId, uploadId, parts){
+   return publicRequest("/api/v1/interview/upload/complete",{
+    method:"POST",
+    body:JSON.stringify({interviewId, uploadId, parts})
+   })
+  },
   create(payload,context ) {
 
      if(context === "individual")
@@ -90,7 +110,8 @@ export const interviewsService = {
     role: payload.role,
     compName: payload.company,
     description: payload.description,
-    skills: payload.skills
+    skills: payload.skills,
+    durationMinutes: payload.durationMinutes
     }),
    });
     }
@@ -102,7 +123,8 @@ export const interviewsService = {
     compName: payload.company,
     description: payload.description,
     skills: payload.skills,
-    email: payload.candidateEmail
+    email: payload.candidateEmail,
+    durationMinutes: payload.durationMinutes
     }),
    });
   },
