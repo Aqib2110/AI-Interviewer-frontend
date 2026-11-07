@@ -8,6 +8,9 @@ export const authService = {
     });
   },
 
+
+
+  
   signupIndividual({ name, email, password }) {
     return publicRequest("/api/v1/auth/user/signup", {
       method: "POST",
