@@ -13,14 +13,14 @@ export function ScoreBar({ score, className, dark = false }) {
   );
 }
 
-export function SkillBar({ name, score, explanation, defaultOpen = false, compact = false }) {
+export function SkillBar({ skill, score, explanation, defaultOpen = false, compact = false }) {
   const [open, setOpen] = useState(defaultOpen);
   const t = scoreTone(score);
   const expandable = !!explanation && !compact;
   return (
     <div className={cn("group", !compact && "rounded-lg border border-slate-200 bg-white px-4 py-3.5 transition-colors hover:border-slate-300")} data-testid={`skill-bar-${slug(name)}`}>
       <button type="button" disabled={!expandable} onClick={() => setOpen((o) => !o)} className="flex w-full items-center gap-4 text-left disabled:cursor-default">
-        <span className={cn("min-w-0 flex-1 truncate font-medium text-slate-800", compact ? "text-[13px]" : "text-sm")}>{name}</span>
+        <span className={cn("min-w-0 flex-1 truncate font-medium text-slate-800", compact ? "text-[13px]" : "text-sm")}>{skill}</span>
         <span className={cn("font-mono text-sm font-semibold tabular", t.text)}>
           {score}<span className="text-xs font-normal text-slate-400"> / 100</span>
         </span>

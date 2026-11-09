@@ -14,8 +14,8 @@ export const NAVIGATION = {
     {
       section: "organization",
       items: [
-        { key: "members", label: "Members", to: "/app/members", icon: UserCog, roles:["HR"] },
-        { key: "invitations", label: "Invitations", to: "/app/invitations", icon: MailPlus, roles:["HR"] },
+        { key: "members", label: "Members", to: "/app/members", icon: UserCog, roles:["ADMIN"] },
+        { key: "invitations", label: "Invitations", to: "/app/invitations", icon: MailPlus, roles:["ADMIN"] },
         // { key: "settings", label: "Settings", to: "/app/settings", icon: Settings },
       ],
     },

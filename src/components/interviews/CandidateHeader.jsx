@@ -111,6 +111,7 @@ export function CandidateHeader({
   onBack,
   onOpenResume,
   hasResume,
+  publicView = false,
 }) {
   const { context, user } = useSession();
   const navigate = useNavigate();
@@ -118,7 +119,9 @@ export function CandidateHeader({
 
   const share = async () => {
     try {
-      await navigator.clipboard.writeText(window.location.href);
+      const id = window.location.href.split("/").pop();
+      const shareUrl = `${window.location.origin}/public/report/${id}`;
+      await navigator.clipboard.writeText(shareUrl);
       toast.success("Report link copied");
     } catch {
       toast.error("Unable to copy report link");
@@ -132,11 +135,13 @@ export function CandidateHeader({
     : user?.name || "My Interview";
 
   const candidateEmail = isOrganization
-    ? interview?.candidateEmail
+    ? interview?.interviewcandidate?.email ||
+      user?.email ||
+      interview?.candidateEmail
     : user?.email || interview?.candidateEmail;
 
   const interviewStatus = interview?.status?.toUpperCase();
-
+console.log(interviewStatus,"interviewStatusss");
   const canStartInterview =
     !isOrganization &&
     interviewStatus === "PENDING" &&
@@ -179,7 +184,7 @@ export function CandidateHeader({
                 </h1>
 
                 <StatusBadge
-                  status={interview?.status}
+                  status={interviewStatus}
                   data-testid="candidate-status"
                 />
               </div>
@@ -215,7 +220,7 @@ export function CandidateHeader({
                 <span className="text-sm font-medium text-slate-600">
                   Interview status:
                 </span>
-                <StatusBadge status={interview?.status} />
+                <StatusBadge status={interviewStatus} />
               </div>
 
               {isOrganization && (
@@ -242,7 +247,7 @@ export function CandidateHeader({
             </div>
 
             <ScoreRing
-              score={interview?.Report?.content?.overallScore}
+              score={interview?.score}
               size={96}
               stroke={8}
               testId="header-score-ring"
@@ -301,17 +306,18 @@ export function CandidateHeader({
       </div>
 
       <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 bg-slate-50/50 px-5 py-3 sm:px-7">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={share}
-          data-testid="share-report-button"
-        >
+       { !publicView && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={share}
+            data-testid="share-report-button"
+          >
           <Share2 className="mr-1.5 h-3.5 w-3.5" />
           Share report
-        </Button>
+        </Button>)}
 
-        {canStartInterview && (
+        {canStartInterview && !publicView && (
           <Button
             size="sm"
             onClick={startInterview}

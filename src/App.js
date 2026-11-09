@@ -56,7 +56,7 @@ export default function App() {
             <Route path="/interview/:id" element={<LiveInterviewPage />} />
             <Route element={<PublicLayout />}>
   <Route
-    path="/public/reports/:shareToken"
+    path="/public/report/:shareToken"
     element={<PublicReportPage />}
   />
 </Route>

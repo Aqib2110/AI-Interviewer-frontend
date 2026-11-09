@@ -67,8 +67,8 @@ async function tokenRefresh(endpoint, options, type, accessToken) {
   const data = await response.json();
 
   if (!response.ok) {
-    // localStorage.removeItem(KEY);
-    // window.location.href = "/login";
+    localStorage.removeItem(KEY);
+    window.location.href = "/login";
 
     throw new Error(
       data?.message || "Session expired. Please log in again."

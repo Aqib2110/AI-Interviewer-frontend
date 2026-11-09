@@ -22,7 +22,7 @@ export function InviteDialog({ open, onOpenChange, onInvited }) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setErr("Enter a valid email address.");
     setBusy(true);
     try {
-      const inv = await invitationsService.invite({ email, role, orgId: org.id });
+      const inv = await invitationsService.invite({ email, role });
       toast.success(`Invitation sent to ${email}`);
       onInvited?.(inv);
       setEmail(""); setErr(""); onOpenChange(false);

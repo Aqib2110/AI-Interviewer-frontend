@@ -1,3 +1,30 @@
+[data-testid="full-report"] {
+  background: white;
+}
+
+[data-testid="full-report"] h2,
+[data-testid="full-report"] h3 {
+  break-after: avoid;
+}
+
+[data-testid="full-report"] .rounded-lg,
+[data-testid="full-report"] .rounded-xl {
+  break-inside: avoid;
+}
+
+[data-testid="full-report"] img {
+  max-width: 100%;
+}
+
+.pdf-hide {
+  display: block;
+}
+
+.pdf-hide {
+  break-inside: avoid;
+}
+
+
 html {
     scroll-behavior: smooth;
 }

@@ -29,6 +29,7 @@ export default function InterviewsPage() {
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   
    const { data, loading, error, reload } = useAsync(() => interviewsService.getPublicReport(shareToken), [shareToken]);
+     console.log(data,"data");
   const onBack = ()=>{navigate("/")}
   const Active = TABS.find((t) => t.key === tab)?.C ?? OverviewTab;
   
@@ -44,8 +45,9 @@ export default function InterviewsPage() {
   return (
        <div className="space-y-5" data-testid="interview-detail">
          <CandidateHeader
-           interview={data?.candidate}
+           interview={data?.report}
            onBack={onBack}
+           publicView={true}
            hasResume={!!data?.candidate?.resume}
            onOpenResume={() => setResumeOpen(true)}
          />
@@ -76,7 +78,7 @@ export default function InterviewsPage() {
              transition={{ duration: 0.18 }}
            >
              <Active
-               detail={data?.candidate}
+               detail={data?.report}
                goTab={setTab}
                onOpenVideo={openVideo}
                onOpenResume={() => setResumeOpen(true)}
@@ -90,15 +92,15 @@ export default function InterviewsPage() {
            onOpenChange={(open) =>
              setVideo((v) => ({ ...v, open }))
            }
-           recording={data?.recording}
-           interview={data?.candidate?.interview}
+           recording={data?.report?.recording}
+           interview={data?.report}
          />
    
          <ResumeModal
            open={resumeOpen}
            onOpenChange={setResumeOpen}
-           resume={data?.candidate?.resume}
-           candidate={data?.candidate?.resume}
+           resume={data?.report?.interviewCandidate?.resume}
+           candidate={data?.report?.interviewCandidate?.resume}
          />
        </div>
      );
