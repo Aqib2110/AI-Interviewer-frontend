@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { Logo } from "@/components/common/Logo";
+import {useAsync} from "@/hooks/useAsync";
 import { useSession } from "@/context/SessionContext";
 
 function AuthRequired() {
@@ -31,6 +32,8 @@ export default function AppLayout() {
   if (!isAuthenticated) return <AuthRequired />;
   const fullBleed = pathname.startsWith("/app/interviews") && pathname !== "/app/interviews/new";
 
+
+  
   return (
     <div className="min-h-screen bg-[hsl(210_40%_98%)]">
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 border-r border-slate-200 bg-white lg:block"><Sidebar /></aside>

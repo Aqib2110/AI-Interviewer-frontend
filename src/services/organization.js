@@ -78,6 +78,22 @@ export const invitationsService = {
       body:JSON.stringify({email,role})
     })
   },
+  getMyInvitations(){
+   return authenticatedRequest("/api/v1/user/invitations",{
+    method:"GET"
+   })
+  },
+  accept(token) {
+    return authenticatedRequest("/api/v1/organization/invitation/accept",{
+      method:"POST",
+      body:JSON.stringify({tokenHash:token})
+    })
+  },
+  getByToken(token) {
+    return authenticatedRequest(`/api/v1/user/invitation/${token}`,{
+      method:"GET"
+    })
+  },
   resend(id) {
     const inv = invitations.find((i) => i.id === id);
     inv.sentAt = new Date().toISOString();
