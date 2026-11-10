@@ -45,8 +45,8 @@ export default function AppLayout() {
       </Sheet>
       <div className="lg:pl-60">
         <Header onOpenMenu={() => setMenuOpen(true)} />
-        <motion.main
-          key={`${context}-${org?.id}-${pathname.split("/").slice(0, 3).join("/")}`}
+       <motion.main
+          key={`${context}-${org?.id}`}
           initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, ease: "easeOut" }}
           className={`mx-auto w-full px-4 py-6 sm:px-6 lg:px-8 lg:py-8 ${fullBleed ? "" : "max-w-[1600px]"}`}
         >

@@ -90,7 +90,6 @@ export default function App() {
             </Route>
             <Route path="/app" element={<AppLayout />}>
             <Route element={<PendingInvitationsProvider />}>
-
               <Route index element={<OverviewPage />} />
               <Route path="interviews" element={<InterviewsPage />} />
               <Route path="invitations/accept" element={<InvitationsListPage />} />

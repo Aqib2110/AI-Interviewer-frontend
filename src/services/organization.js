@@ -95,9 +95,10 @@ export const invitationsService = {
     })
   },
   resend(id) {
-    const inv = invitations.find((i) => i.id === id);
-    inv.sentAt = new Date().toISOString();
-    return respond(inv, { latency: 500, mutation: true });
+    return tenantRequest("/api/v1/organization/invitation/resend",{
+      method:"POST",
+      body:JSON.stringify({invitationId:id})
+    })
   },
   revoke(id) {
     const inv = invitations.find((i) => i.id === id);

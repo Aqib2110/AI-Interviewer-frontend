@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo } from "react";
+import { createContext, useContext, useMemo,useEffect,useRef } from "react";
 import {
   Navigate,
   Outlet,
@@ -34,6 +34,18 @@ export function PendingInvitationsProvider() {
   }, [data]);
 
   const hasInvitations = invitations.length > 0;
+  
+
+
+const instance = useRef(Math.random().toString(36).slice(2));
+
+useEffect(() => {
+  console.log("Provider mounted:", instance.current);
+
+  return () => {
+    console.log("Provider unmounted:", instance.current);
+  };
+}, []);
 
   const value = useMemo(
     () => ({
@@ -47,7 +59,7 @@ export function PendingInvitationsProvider() {
     [invitations, loading, error, reload, hasInvitations],
   );
 
-  if (!user?.id || loading) {
+  if (loading) {
     return <CardsSkeleton />;
   }
 

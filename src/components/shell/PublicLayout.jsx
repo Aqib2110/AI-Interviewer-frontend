@@ -16,9 +16,9 @@ export default function PublicLayout() {
           </Link>
 
           <div className="flex items-center gap-3">
-            <span className="hidden text-sm text-slate-500 sm:inline">
+            {/* <span className="hidden text-sm text-slate-500 sm:inline">
               Shared Interview Report
-            </span>
+            </span> */}
 
             <Button asChild variant="outline" size="sm">
               <Link to="/login">Log in</Link>
@@ -31,12 +31,6 @@ export default function PublicLayout() {
         <Outlet />
       </main>
 
-      <footer className="border-t border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-[1600px] flex-col items-center justify-between gap-2 px-4 py-5 text-sm text-slate-500 sm:flex-row sm:px-6 lg:px-8">
-          <p>InterviewAI</p>
-          <p>Shared securely by the interview owner.</p>
-        </div>
-      </footer>
     </div>
   );
 }

@@ -87,8 +87,8 @@ export default function MembersPage() {
   const [q, setQ] = useState("");
 
   useEffect(() => {
-    const records = Array.isArray(data?.member)
-      ? data.member
+    const records = Array.isArray(data?.members)
+      ? data.members
       : Array.isArray(data)
         ? data
         : [];
@@ -97,7 +97,7 @@ export default function MembersPage() {
   }, [data]);
 
   const orgName = useMemo(() => {
-    const records = Array.isArray(data?.member) ? data.member : [];
+    const records = Array.isArray(data?.members) ? data.members : [];
     return records[0]?.organization?.name ?? "your organization";
   }, [data]);
 

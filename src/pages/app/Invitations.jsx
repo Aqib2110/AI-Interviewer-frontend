@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useState,useEffect } from "react";
 import { toast } from "sonner";
 import { MailPlus, MoreHorizontal, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
-import { ArrowRight, Building2, CheckCircle2, Clock3, LockKeyhole, ShieldCheck, Users } from "lucide-react";
+import {usePendingInvitations} from "@/context/PendingInvitationsContext";
+import { ArrowRight, Building2, CheckCircle2, Clock3, LockKeyhole, ShieldCheck, Users,AlertCircle } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-// import Calan
+import { ArrowLeft } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -35,6 +36,7 @@ import { useAsync } from "@/hooks/useAsync";
 import {useMemo} from "react";
 import { useSession } from "@/context/SessionContext";
 import { formatDate } from "@/lib/format";
+import { div } from "three/src/nodes/math/OperatorNode.js";
 
 const STATUS = {
   pending: "bg-amber-50 text-amber-700 border-amber-200",
@@ -62,26 +64,41 @@ export default function InvitationsPage() {
   const [invitations, setInvitations] = useState(null);
 
 const invitationList = useMemo(() => {
-  if (invitations) return invitations;
+  if (Array.isArray(invitations)) return invitations;
 
   if (Array.isArray(data)) {
-    return data.flatMap(
-      (organization) => organization.invitations ?? [],
+    return data.flatMap((organization) =>
+      Array.isArray(organization.invitations)
+        ? organization.invitations
+        : []
     );
   }
 
-  return data?.invitations ?? [];
+  if (Array.isArray(data?.invitations)) {
+    return data.invitations;
+  }
+
+  if (Array.isArray(data?.data?.invitations)) {
+    return data.data.invitations;
+  }
+
+  return [];
 }, [invitations, data]);
+
 console.log(invitationList,"invitationList");
-  const patch = (updatedInvitation) => {
-    setInvitations((current) =>
-      (current ?? data ?? []).map((item) =>
-        item.id === updatedInvitation.id
-          ? { ...item, ...updatedInvitation }
-          : item,
-      ),
+ const patch = (updatedInvitation) => {
+  setInvitations((current) => {
+    const list = Array.isArray(current)
+      ? current
+      : invitationList;
+
+    return list.map((item) =>
+      item.id === updatedInvitation.id
+        ? { ...item, ...updatedInvitation }
+        : item
     );
-  };
+  });
+};
 
   const rows = useMemo(() => {
     return invitationList.filter((inv) => {
@@ -106,38 +123,52 @@ console.log(invitationList,"invitationList");
     ),
   ).length;
 
-  const handleInvited = (inv) => {
-    setInvitations((current) => [
-      inv,
-      ...(current ?? data ?? []).filter(
-        (item) => item.id !== inv.id,
-      ),
-    ]);
+ const handleInvited = (inv) => {
+  setInvitations((current) => {
+    const list = Array.isArray(current)
+      ? current
+      : invitationList;
 
-    setTab("pending");
-  };
+    return [
+      inv,
+      ...list.filter((item) => item.id !== inv.id),
+    ];
+  });
+
+  setTab("pending");
+};
 
   const handleResend = async (inv) => {
-    try {
-      const updated = await invitationsService.resend(inv.id);
+  try {
+    const response = await invitationsService.resend(inv.id);
 
-      patch({
-        ...updated,
-        status: updated.status ?? "pending",
-      });
+    const updated = response?.data?.invitation ??
+      response?.invitation ??
+      response?.data;
 
-      toast.success(`Invitation re-sent to ${inv.email}`);
-    } catch (error) {
-      toast.error(
-        error?.message ?? "Failed to resend invitation",
-      );
+    if (!updated?.id) {
+      throw new Error("Invalid resend response");
     }
-  };
+
+    patch({
+      ...updated,
+      status: updated.status ?? "pending",
+    });
+
+    toast.success(`Invitation re-sent to ${inv.email}`);
+  } catch (error) {
+    toast.error(
+      error?.response?.data?.message ??
+        error?.message ??
+        "Failed to resend invitation"
+    );
+  }
+};
 
   const handleCopyLink = async (inv) => {
     try {
       await navigator.clipboard.writeText(
-        `${window.location.origin}/join/${inv.id}`,
+        `${window.location.origin}/invitation/${inv?.tokenHash}`,
       );
 
       toast.success("Invite link copied");
@@ -360,19 +391,80 @@ console.log(invitationList,"invitationList");
 
 
 
+
+
+
 export function InvitationAcceptPage() {
- const { token } = useParams();
+  const { token } = useParams();
   const navigate = useNavigate();
   const { user, isAuthenticated, switchOrg } = useSession();
 
   const [accepting, setAccepting] = useState(false);
+  const [checking, setChecking] = useState(true);
   const [error, setError] = useState("");
   const [accepted, setAccepted] = useState(false);
+  const [expired, setExpired] = useState(false);
+  const [invitation, setInvitation] = useState(null);
 
   const invitationUrl = `/invitation/accept/${token}`;
 
+  useEffect(() => {
+    let active = true;
+
+    const checkInvitation = async () => {
+      if (!token) {
+        setExpired(true);
+        setChecking(false);
+        return;
+      }
+
+      try {
+        const response = await invitationsService.getByToken(token);
+
+        const invitationData =
+          response?.data?.invitation ??
+          response?.data?.data ??
+          response?.data ??
+          response?.invitation;
+
+        if (!active) return;
+
+        if (
+          !invitationData?.expiresAt ||
+          new Date(invitationData.expiresAt).getTime() <= Date.now()
+        ) {
+          setExpired(true);
+          return;
+        }
+
+        setInvitation(invitationData);
+      } catch (err) {
+        if (!active) return;
+
+        setExpired(true);
+      } finally {
+        if (active) {
+          setChecking(false);
+        }
+      }
+    };
+
+    checkInvitation();
+
+    return () => {
+      active = false;
+    };
+  }, [token]);
+
   const handleAccept = async () => {
-    if (!isAuthenticated || !token || accepting) return;
+    if (!isAuthenticated || !token || accepting || expired || !invitation) {
+      return;
+    }
+
+    if (new Date(invitation.expiresAt).getTime() <= Date.now()) {
+      setExpired(true);
+      return;
+    }
 
     setAccepting(true);
     setError("");
@@ -394,11 +486,17 @@ export function InvitationAcceptPage() {
         navigate("/organization", { replace: true });
       }, 1200);
     } catch (err) {
-      setError(
-        err?.response?.data?.message ||
-          err?.message ||
-          "Unable to accept this invitation. Please try again."
-      );
+      const status = err?.response?.status;
+
+      if (status === 410) {
+        setExpired(true);
+      } else {
+        setError(
+          err?.response?.data?.message ||
+            err?.message ||
+            "Unable to accept this invitation. Please try again."
+        );
+      }
     } finally {
       setAccepting(false);
     }
@@ -432,6 +530,7 @@ export function InvitationAcceptPage() {
                 <p className="text-sm font-semibold text-slate-900">
                   You're invited to join a team
                 </p>
+
                 <p className="mt-1 text-xs leading-5 text-slate-500">
                   Accept this invitation to access your organization's
                   workspace, interviews, and team resources.
@@ -439,7 +538,47 @@ export function InvitationAcceptPage() {
               </div>
             </div>
 
-            {accepted ? (
+            {checking ? (
+              <div className="space-y-4 py-8 text-center">
+                <span className="mx-auto block h-9 w-9 animate-spin rounded-full border-2 border-slate-200 border-t-slate-900" />
+
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-900">
+                    Checking invitation
+                  </h2>
+
+                  <p className="mt-1 text-sm text-slate-500">
+                    Please wait while we verify your invitation.
+                  </p>
+                </div>
+              </div>
+            ) : expired ? (
+              <div className="space-y-4 py-5 text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-50">
+                  <AlertCircle className="h-7 w-7 text-red-500" />
+                </div>
+
+                <div className="space-y-2">
+                  <h2 className="text-lg font-semibold text-slate-900">
+                    Invitation expired
+                  </h2>
+
+                  <p className="text-sm leading-6 text-slate-500">
+                    This invitation has expired or is no longer available.
+                    Please contact your organization administrator to
+                    request a new invitation.
+                  </p>
+                </div>
+
+                <Button
+                  onClick={() => navigate("/login")}
+                  variant="outline"
+                  className="h-11 w-full"
+                >
+                  Back to login
+                </Button>
+              </div>
+            ) : accepted ? (
               <div className="space-y-4 py-4 text-center">
                 <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50">
                   <CheckCircle2 className="h-7 w-7 text-emerald-600" />
@@ -477,6 +616,7 @@ export function InvitationAcceptPage() {
                     <p className="text-sm font-medium text-slate-800">
                       Authentication required
                     </p>
+
                     <p className="mt-1 text-xs text-slate-500">
                       Log in to accept your invitation.
                     </p>
@@ -529,6 +669,7 @@ export function InvitationAcceptPage() {
 
                   <div className="min-w-0 flex-1">
                     <p className="text-xs text-slate-500">Signed in as</p>
+
                     <p className="truncate text-sm font-medium text-slate-900">
                       {user?.email}
                     </p>
@@ -539,6 +680,7 @@ export function InvitationAcceptPage() {
 
                 <div className="flex items-start gap-3 rounded-xl bg-slate-50 p-4">
                   <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />
+
                   <p className="text-xs leading-5 text-slate-500">
                     By accepting, you agree to join this organization using
                     your currently authenticated account.
@@ -553,7 +695,7 @@ export function InvitationAcceptPage() {
 
                 <Button
                   onClick={handleAccept}
-                  disabled={accepting || !token}
+                  disabled={accepting || !token || !invitation}
                   className="h-11 w-full bg-slate-900 text-white hover:bg-slate-800"
                 >
                   {accepting ? (
@@ -589,25 +731,7 @@ export function InvitationAcceptPage() {
 
 
 
-const getInvitations = (response) => {
-  const result =
-    response?.data?.invitations ??
-    response?.invitations ??
-    response?.data ??
-    response;
 
-  return Array.isArray(result) ? result : [];
-};
-
-// const formatDate = (date) => {
-//   if (!date) return "—";
-
-//   return new Date(date).toLocaleDateString(undefined, {
-//     day: "numeric",
-//     month: "short",
-//     year: "numeric",
-//   });
-// };
 
 const formatRole = (role) => {
   if (!role) return "Member";
@@ -627,19 +751,14 @@ export function InvitationsListPage() {
   const [successMessage, setSuccessMessage] = useState("");
 
   const {
-    data,
     loading,
+    invitations,
     error,
     reload,
-  } = useAsync(
-    () =>
-      isAuthenticated
-        ? invitationsService.getMyInvitations()
-        : Promise.resolve({ invitations: [] }),
-    [isAuthenticated]
-  );
+  } = usePendingInvitations();
 
-  const invitations = getInvitations(data);
+
+  // const invitations = getInvitations(data);
 
   const handleAccept = async (invitation) => {
     if (!isAuthenticated || !invitation?.id || acceptingId) return;
@@ -709,8 +828,16 @@ export function InvitationsListPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-10 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-slate-50 px-4 sm:px-6 lg:px-8">
+       <button
+  onClick={() => navigate("/app")}
+  className="inline-flex  gap-2 pb-6 rounded-lg text-sm font-medium text-slate-600 transition-colors hover:text-slate-900"
+>
+  <ArrowLeft className="h-4 w-4" />
+  Back to dashboard
+</button>
       <div className="mx-auto max-w-4xl space-y-8">
+         
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="flex items-center gap-2 text-sm text-slate-500">
