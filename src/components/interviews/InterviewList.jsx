@@ -22,7 +22,7 @@ export function InterviewList({ items, loading, error, reload, selectedId, onSel
   const {user} = useSession();
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return (items || []).filter((i) => matchFilter(filter, i.status) && (!q || `${i.candidate.name} ${i.role} ${i.title}`.toLowerCase().includes(q)));
+    return (items || [])?.filter((i) => matchFilter(filter, i.status) && (!q || `${i?.candidate?.name} ${i?.role} ${i?.title}`.toLowerCase().includes(q)));
   }, [items, query, filter]);
 
   return (

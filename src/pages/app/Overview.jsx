@@ -31,10 +31,6 @@ function InterviewRows({ items }) {
   );
 }
 
-const NewBtn = () => {
-  // const { can } = useSession();
-  // return can("interview:create") ? <Button asChild data-testid="overview-new-interview-button"><Link to="/app/interviews/new"><Plus className="mr-1.5 h-4 w-4" /> New interview</Link></Button> : null;
-};
 
 function OrgOverview() {
   const { orgName, user,orgId } = useSession();
@@ -48,10 +44,10 @@ function OrgOverview() {
 
   return (
     <div data-testid="org-overview">
-      <PageHeader eyebrow={orgName} title={`Good afternoon, ${user?.name?.split(" ")[0]}`} description="Here's how hiring is moving across your workspaces this week." actions={<><Button variant="outline" asChild><Link to="/app/candidates">View candidates</Link></Button><NewBtn /></>} />
+      <PageHeader eyebrow={orgName} title={`Good afternoon, ${user?.name?.split(" ")[0]}`} description="Here's how hiring is moving across your workspaces this week." actions={<><Button variant="outline" asChild><Link to="/app/candidates">View candidates</Link></Button></>} />
       {loading && <div className="space-y-6"><CardsSkeleton count={5} /><ListSkeleton rows={5} /></div>}
       {error && <ErrorState error={error} onRetry={reload} />}
-      {data && data?.stats?.total === 0 && <EmptyState icon={MessagesSquare} title={`No interviews in ${orgName} yet`} description="Create a structured AI interview and send the link to your first candidate." action={<NewBtn />} />}
+      {data && data?.stats?.total === 0 && <EmptyState icon={MessagesSquare} title={`No interviews in ${orgName} yet`} description="Create a structured AI interview and send the link to your first candidate."  />}
       {data && data?.stats?.total > 0 && (
         <div className="space-y-6">
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-5">
@@ -145,7 +141,6 @@ function IndividualOverview() {
         eyebrow="Personal account"
         title={`Welcome back, ${user?.name?.split(" ")[0] || "there"}`}
         description="Practice structured interviews and track how your skills are evaluated over time."
-        actions={<NewBtn />}
       />
 
       {loading && (
@@ -212,7 +207,6 @@ function IndividualOverview() {
                 <EmptyState
                   title="No interviews yet"
                   description="Create a practice interview for the role you're targeting."
-                  action={<NewBtn />}
                   className="border-0"
                 />
               )}

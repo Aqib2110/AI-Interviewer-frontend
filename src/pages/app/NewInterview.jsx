@@ -33,6 +33,7 @@ const SUGGESTED = [
   "Kubernetes",
   "Communication",
 ];
+
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function SkillsInput({ value, onChange, error }) {
@@ -201,10 +202,9 @@ export default function NewInterviewPage() {
     candidateName: "",
     durationMinutes: 8,
   });
-
+   const [created, setcreated] = useState(null);
   const [errors, setErrors] = useState({});
   const [status, setStatus] = useState("idle");
-  const [created, setCreated] = useState(null);
 
   const set = (k) => (e) =>
     setForm((f) => ({
@@ -252,7 +252,7 @@ export default function NewInterviewPage() {
     try {
       setStatus("loading");
 
-      const iv = await interviewsService.create(
+  const  iv =  await interviewsService.create(
         {
           ...form,
           durationMinutes: Math.min(
@@ -262,8 +262,7 @@ export default function NewInterviewPage() {
         },
         context
       );
-
-      setCreated(iv);
+       setcreated(iv?.interview);
       setStatus("success");
 
       toast.success("Interview created", {
@@ -287,13 +286,13 @@ export default function NewInterviewPage() {
         <SuccessState
           title="Interview created"
           description={`${created?.title} is ready. We've emailed the interview link to ${
-            created?.candidate?.email || form.candidateEmail
+            form.candidateEmail
           }.`}
         >
           <Button
             variant="outline"
             onClick={() => {
-              const link = `https://intervia.app/i/${created.id}`;
+              const link = `https://ai-intervia.vercel.app/interview/${created?.slug}`;
 
               navigator.clipboard?.writeText(link);
               toast.success("Link copied");
@@ -305,9 +304,11 @@ export default function NewInterviewPage() {
           </Button>
 
           <Button
-            onClick={() => navigate(`/app/interviews/${created.id}`)}
+            onClick={() => navigate(`/app/interviews/${created?.slug}`)}
             data-testid="view-new-interview-button"
           >
+
+
             View interview
           </Button>
         </SuccessState>

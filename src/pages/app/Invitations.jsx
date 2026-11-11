@@ -476,6 +476,8 @@ export function InvitationAcceptPage() {
         response?.data?.membership ??
         response?.membership;
 
+        console.log(membership,"membership");
+
       if (membership) {
         switchOrg(membership);
       }
@@ -768,7 +770,7 @@ export function InvitationsListPage() {
     setSuccessMessage("");
 
     try {
-      const response = await invitationsService.acceptById(invitation.id);
+      const response = await invitationsService.accept(invitation.tokenHash);
 
       const membership =
         response?.data?.membership ??

@@ -53,7 +53,6 @@ export function Header({ onOpenMenu }) {
       <div className="hidden sm:block"><ContextSwitcher /></div>
       <div className="flex min-w-0 flex-1 justify-center md:justify-start md:pl-3"><CommandSearch /></div>
       <div className="flex items-center gap-1.5">
-        {context === "organization" && <RoleSwitcher />}
         <NotificationsMenu />
         <ProfileMenu />
       </div>

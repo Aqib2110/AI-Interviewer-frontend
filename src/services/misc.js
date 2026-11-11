@@ -1,7 +1,7 @@
 import { resumes, users, notifications, interviews, candidates } from "@/data";
 import { respond, reject } from "./client";
 import { scopeInterviews, withCandidate } from "./interviews";
-import { apiRequest } from "./api";
+import { apiRequest, tenantRequest } from "./api";
 
 export const resumesService = {
   getCurrent(token) {
@@ -30,13 +30,18 @@ export const resumesService = {
 };
 
 export const notificationsService = {
-  list() {
-    return respond(notifications);
+  list() 
+  {
+    return tenantRequest("/api/v1/user/notifications",{
+      method:"GET"
+    })
   },
-  markAllRead() {
-    notifications.forEach((n) => (n.read = true));
-    return respond(notifications, { latency: 200, mutation: true });
-  },
+  markAllRead(notificationIds) {
+    return tenantRequest("/api/v1/user/notification",{
+      method:"POST",
+      body:JSON.stringify({notificationIds})
+    })
+  }
 };
 
 export const searchService = {

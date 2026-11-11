@@ -114,10 +114,11 @@ export default function MembersPage() {
   };
 
   const changeRole = async (member, role) => {
+    console.log(member,"member");
     if (member.role === role) return;
 
     try {
-      await membersService.updateRole(member.id, role);
+      await membersService.updateRole(member.userId, role);
       patchMember(member.id, { role });
       toast.success(`${member.name} is now ${role}`);
     } catch (err) {
@@ -145,9 +146,9 @@ export default function MembersPage() {
 
   const remove = async () => {
     if (!removing) return;
-
+     console.log(removing,"removing");
     try {
-      await membersService.remove(removing.id);
+      await membersService.remove(removing.userId);
 
       setMembers((current) =>
         current.filter((member) => member.id !== removing.id),
@@ -343,14 +344,6 @@ export default function MembersPage() {
                         </DropdownMenuTrigger>
 
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => toggleStatus(member)}
-                            data-testid={`member-toggle-status-${member.id}`}
-                          >
-                            {member.status === "active"
-                              ? "Deactivate"
-                              : "Reactivate"}
-                          </DropdownMenuItem>
 
                           <DropdownMenuSeparator />
 
