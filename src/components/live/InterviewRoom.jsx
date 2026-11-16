@@ -2278,88 +2278,97 @@ export function InterviewRoom({
     }
   };
 
-  const fetchPresignedUrls = async (startPart) => {
-    const existingRequest =
-      urlBatchRequestsRef.current.get(startPart);
 
-    if (existingRequest) {
-      await existingRequest;
-      return;
-    }
+const fetchPresignedUrls = async (startPart) => {
+  const existingRequest =
+    urlBatchRequestsRef.current.get(startPart);
 
-    const request = (async () => {
-      const result = await interviewsService.getInterviewVideoUrls(
-        interviewId,
-        uploadIdRef.current,
-        startPart,
-        URL_BATCH_SIZE
-      );
+  if (existingRequest) {
+    return existingRequest;
+  }
 
-      const response = result?.data ?? result;
-      const urls = response?.urls ?? [];
+  const request = (async () => {
+    const result = await interviewsService.getInterviewVideoUrls(
+      interviewId,
+      uploadIdRef.current
+    );
 
-      if (!Array.isArray(urls) || urls.length === 0) {
-        throw new Error(
-          `The server returned no upload URLs for part ${startPart}.`
-        );
-      }
+    const response = result?.data ?? result;
+    const urls = response?.urls ?? [];
 
-      urls.forEach((item, index) => {
-        const partNumber =
-          typeof item === "string"
-            ? startPart + index
-            : item.partNumber ?? startPart + index;
-
-        const url =
-          typeof item === "string"
-            ? item
-            : item.url;
-
-        if (url) {
-          presignedUrlsRef.current.set(partNumber, url);
-        }
-      });
-    })();
-
-    urlBatchRequestsRef.current.set(startPart, request);
-
-    try {
-      await request;
-    } finally {
-      if (
-        urlBatchRequestsRef.current.get(startPart) === request
-      ) {
-        urlBatchRequestsRef.current.delete(startPart);
-      }
-    }
-  };
-
-  const ensurePresignedUrls = async (partNumber) => {
-    if (presignedUrlsRef.current.has(partNumber)) {
-      return;
-    }
-
-    const startPart =
-      Math.floor((partNumber - 1) / URL_BATCH_SIZE) *
-        URL_BATCH_SIZE +
-      1;
-
-    if (!presignedBatchPromisesRef.current.has(startPart)) {
-      const promise = fetchPresignedUrls(startPart).finally(() => {
-        presignedBatchPromisesRef.current.delete(startPart);
-      });
-
-      presignedBatchPromisesRef.current.set(startPart, promise);
-    }
-
-    await presignedBatchPromisesRef.current.get(startPart);
-
-    if (!presignedUrlsRef.current.has(partNumber)) {
+    if (!Array.isArray(urls) || urls.length === 0) {
       throw new Error(
-        `No presigned URL available for part ${partNumber}.`
+        `The server returned no upload URLs for part ${startPart}.`
       );
     }
-  };
+
+    for (const item of urls) {
+      const partNumber = item.partNumber;
+      const url = item.url;
+
+      if (!Number.isInteger(partNumber) || !url) {
+        throw new Error("Invalid presigned URL response.");
+      }
+
+      presignedUrlsRef.current.set(partNumber, url);
+    }
+
+    console.log("Presigned URLs received:", {
+      requestedStartPart: startPart,
+      actualParts: urls.map((item) => item.partNumber),
+    });
+  })();
+
+  urlBatchRequestsRef.current.set(startPart, request);
+
+  try {
+    return await request;
+  } finally {
+    if (urlBatchRequestsRef.current.get(startPart) === request) {
+      urlBatchRequestsRef.current.delete(startPart);
+    }
+  }
+};
+
+
+const ensurePresignedUrls = async (partNumber) => {
+  if (presignedUrlsRef.current.has(partNumber)) {
+    return;
+  }
+
+  const startPart =
+    Math.floor((partNumber - 1) / URL_BATCH_SIZE) *
+      URL_BATCH_SIZE +
+    1;
+
+  if (!presignedBatchPromisesRef.current.has(startPart)) {
+    const promise = fetchPresignedUrls(startPart).finally(() => {
+      presignedBatchPromisesRef.current.delete(startPart);
+    });
+
+    presignedBatchPromisesRef.current.set(startPart, promise);
+  }
+
+  await presignedBatchPromisesRef.current.get(startPart);
+
+  console.log("Presigned URL check:", {
+    requestedPart: partNumber,
+    batchStart: startPart,
+    availableParts: [...presignedUrlsRef.current.keys()],
+  });
+
+  if (!presignedUrlsRef.current.has(partNumber)) {
+    throw new Error(
+      `No presigned URL available for part ${partNumber}.`
+    );
+  }
+};
+
+  const handlesessionResumptionUpdate = async(update)=>{
+    if (update.resumable && update.newHandle) {
+    await interviewsService.sessionResumptionUpdate(update);
+  }
+  }
 
   const replenishUrlsIfNeeded = () => {
     const remaining = [
@@ -2529,8 +2538,7 @@ export function InterviewRoom({
     }
 
     const result = await interviewsService.startInterviewUpload(
-      interviewId,
-      organizationId
+      interviewId
     );
 
     const response = result?.data ?? result;
@@ -2693,7 +2701,6 @@ export function InterviewRoom({
         await interviewsService.InterviewVideoComplete(
           interviewId,
           uploadIdRef.current,
-          parts
         );
 
       const response = result?.data ?? result;
@@ -3091,6 +3098,7 @@ export function InterviewRoom({
       );
 
       const token = result?.token ?? result?.data?.token;
+      const sessionResumptionHandle = result?.sessionResumptionHandle ?? result?.data?.sessionResumptionHandle
 
       if (!token || typeof token !== "string") {
         throw new Error(
@@ -3120,10 +3128,19 @@ export function InterviewRoom({
           apiVersion: "v1alpha",
         },
       });
-
+  const config = {
+  // responseModalities: [Modality.AUDIO],
+  ...(sessionResumptionHandle
+    ? {
+        sessionResumption: {
+          handle: sessionResumptionHandle,
+        },
+      }
+    : {}),
+};
       session = await ai.live.connect({
         model: MODEL,
-
+        config,
         callbacks: {
           onopen: () => {
             if (endingRef.current) return;
@@ -3139,8 +3156,14 @@ export function InterviewRoom({
 onmessage: async (message) => {
   if (endingRef.current) return;
 
-  const content = message.serverContent;
 
+  if (message.sessionResumptionUpdate) {
+     const update = message.sessionResumptionUpdate;
+     handlesessionResumptionUpdate(update,interviewId);
+  }
+
+  const content = message.serverContent;
+  
   if (!content) return;
 
   const inputText = content.inputTranscription?.text;

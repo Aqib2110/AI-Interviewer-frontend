@@ -11,10 +11,10 @@ import { useSession } from "@/context/SessionContext";
 
 const FILTERS = [
   { key: "all", label: "All" },
-  { key: "completed", label: "Completed" },
+  { key: "compeleted", label: "Completed" },
   { key: "active", label: "Active" },
 ];
-const matchFilter = (f, s) => f === "all" || (f === "completed" ? s === "completed" : s !== "completed");
+const matchFilter = (f, s) => f === "all" || (f === "compeleted" ? s === "compeleted" : s !== "compeleted");
 
 export function InterviewList({ items, loading, error, reload, selectedId, onSelect, initialQuery = "", onCreate }) {
   const [query, setQuery] = useState(initialQuery);
@@ -22,7 +22,8 @@ export function InterviewList({ items, loading, error, reload, selectedId, onSel
   const {user} = useSession();
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return (items || [])?.filter((i) => matchFilter(filter, i.status) && (!q || `${i?.candidate?.name} ${i?.role} ${i?.title}`.toLowerCase().includes(q)));
+    console.log(items,"items")
+    return (items || [])?.filter((i) => matchFilter(filter, i.status.toLowerCase()) && (!q || `${i?.candidate?.name} ${i?.role} ${i?.title}`.toLowerCase().includes(q)));
   }, [items, query, filter]);
 
   return (

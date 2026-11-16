@@ -107,7 +107,7 @@ console.log(invitationList,"invitationList");
       if (tab === "all") return true;
       if (tab === "pending") return status === "pending";
 
-      return ["accepted", "expired", "pending"].includes(status);
+      return ["accepted", "expired"].includes(status);
     });
   }, [invitationList, tab]);
 

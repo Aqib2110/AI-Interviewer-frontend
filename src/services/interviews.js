@@ -81,22 +81,34 @@ export const interviewsService = {
    })
   
   },
-  startInterviewUpload(interviewId,organizationId){
+  startInterviewUpload(interviewId){
     return publicRequest("/api/v1/interview/upload/start",{
       method:"POST",
       body:JSON.stringify({interviewId})
     })
   },
-  getInterviewVideoUrls(interviewId, uploadId, startPart, count){
+  getInterviewVideoUrls(interviewId, uploadId){
    return publicRequest("/api/v1/interview/video/sign-url",{
     method:"POST",
-    body:JSON.stringify({interviewId, uploadId, startPart, count})
+    body:JSON.stringify({interviewId, uploadId})
    })
   },
-   InterviewVideoComplete(interviewId, uploadId, parts){
+  sessionResumptionUpdate(update,interviewId)
+  {
+   return publicRequest(
+      `/api/v1/interview/${interviewId}/session-resumption`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({
+          handle: update.newHandle,
+        }),
+      }
+    );
+  },
+   InterviewVideoComplete(interviewId, uploadId){
    return publicRequest("/api/v1/interview/upload/complete",{
     method:"POST",
-    body:JSON.stringify({interviewId, uploadId, parts})
+    body:JSON.stringify({interviewId, uploadId})
    })
   },
   create(payload,context ) {

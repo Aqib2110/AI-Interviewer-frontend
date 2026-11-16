@@ -1,7 +1,8 @@
 import { resumes, users, notifications, interviews, candidates } from "@/data";
 import { respond, reject } from "./client";
 import { scopeInterviews, withCandidate } from "./interviews";
-import { apiRequest, tenantRequest } from "./api";
+import { apiRequest, authenticatedRequest, tenantRequest } from "./api";
+import { method } from "lodash";
 
 export const resumesService = {
   getCurrent(token) {
@@ -45,16 +46,16 @@ export const notificationsService = {
 };
 
 export const searchService = {
-  getIndex(scope) {
-    const ivs = scopeInterviews(scope).map(withCandidate);
-    const candIds = [...new Set(ivs.map((i) => i.candidateId))];
-    return respond({
-      interviews: ivs.map((i) => ({ id: i.id, title: i.title, candidate: i.candidate.name, role: i.role, status: i.status, score: i.overallScore })),
-      candidates: candIds.map((id) => {
-        const c = candidates.find((x) => x.id === id);
-        return { id: c.id, name: c.name, email: c.email, role: interviews.find((i) => i.candidateId === id)?.role };
-      }),
-      roles: [...new Set(ivs.map((i) => i.role))],
-    }, { latency: 150 });
-  },
+ search(context,query)
+ {
+  if(context == "individual")
+  {
+    return authenticatedRequest(`/api/v1/user/search?q=${query}`,{
+      method:"GET"
+    })
+  }
+   return tenantRequest(`/api/v1/organization/search?q=${query}`,{
+      method:"GET"
+    })
+ }
 };
