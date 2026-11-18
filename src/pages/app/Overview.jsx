@@ -36,8 +36,10 @@ function OrgOverview() {
   const { orgName, user,orgId } = useSession();
 
   const { data, loading, error, reload } = useAsync(() => dashboardService.getOrgOverview(orgId), [orgId]);
-  const complInterviews = data?.interviews?.filter(int=>int.status === "COMPLETED").length;
-  const pendInterviews = data?.interviews?.filter(int=>int.status === "IN_PROGRESS" || "PENDING").length;
+  const complInterviews = data?.interviews?.filter(int=>(int.status == "COMPELETED")).length;
+const pendInterviews = data?.interviews?.filter(
+  int => int.status === "IN_PROGRESS" || int.status === "PENDING"
+).length ?? 0;
   const candidates = data?.interviews?.filter(int=>int?.interviewcandidate?.id);
   const recentInterviews = data?.interviews?.toSorted((a, b) =>new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 5);
   const recentCandidates = candidates?.toSorted((a, b) =>new Date(b.interviewcandidate.createdAt).getTime() - new Date(a.interviewcandidate.createdAt).getTime()).slice(0, 5);
@@ -52,7 +54,8 @@ function OrgOverview() {
         <div className="space-y-6">
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-5">
             <StatCard index={0} label="Total interviews" value={data?.stats?.total} hint="+4 vs last week" icon={MessagesSquare} testId="stat-total-interviews" />
-            <StatCard index={1} label="Completed" value={complInterviews} hint="Reports generated" icon={CheckCircle2} testId="stat-completed" />
+
+            <StatCard index={1} label="Completed" value={complInterviews} hint="Reports generatedssss" icon={CheckCircle2} testId="stat-completed" />
             <StatCard index={2} label="Pending" value={pendInterviews} hint="Invited or in progress" icon={Hourglass} testId="stat-pending" />
             <StatCard index={3} label="Avg. candidate score" value={data?.stats?.avgScore} suffix="/100" hint="Across completed interviews" icon={Gauge} testId="stat-average-score" />
             <StatCard index={4} label="Candidates" value={candidates?.length} hint="In active pipelines" icon={Users} testId="stat-candidates" />
@@ -112,6 +115,9 @@ function IndividualOverview() {
   const compInterviews = interviews.filter(
     (int) => int.status === "COMPLETED"
   ).length;
+
+
+  
 
   const pendInterviews = interviews.filter(
     (int) =>
