@@ -2208,15 +2208,13 @@ export function InterviewRoom({
   const questionRef = useRef("");
   const answerRef = useRef("");
   const savingRef = useRef(false);
-
+  const segmentRef = useRef("");
   const recorderRef = useRef(null);
   const recordingChunksRef = useRef([]);
   const uploadIdRef = useRef(null);
   const recordingKeyRef = useRef(null);
   const nextPartNumberRef = useRef(1);
   const presignedUrlsRef = useRef(new Map());
-  const urlBatchRequestsRef = useRef(new Map());
-  const presignedBatchPromisesRef = useRef(new Map());
   const completedPartsRef = useRef([]);
   const recordingErrorRef = useRef(null);
   const blobProcessingPromiseRef = useRef(Promise.resolve());
@@ -2279,127 +2277,86 @@ export function InterviewRoom({
   };
 
 
-const fetchPresignedUrls = async (startPart) => {
-  const existingRequest =
-    urlBatchRequestsRef.current.get(startPart);
+const urlRequestRef = useRef(null);  
 
-  if (existingRequest) {
-    return existingRequest;
-  }
+const fetchPresignedUrls = async () => {
+  if (urlRequestRef.current) return urlRequestRef.current;
 
   const request = (async () => {
     const result = await interviewsService.getInterviewVideoUrls(
       interviewId,
-      uploadIdRef.current
+      uploadIdRef.current,
+      segmentRef.current
     );
 
     const response = result?.data ?? result;
     const urls = response?.urls ?? [];
 
     if (!Array.isArray(urls) || urls.length === 0) {
-      throw new Error(
-        `The server returned no upload URLs for part ${startPart}.`
-      );
+      throw new Error("The server returned no upload URLs.");
     }
 
-    for (const item of urls) {
-      const partNumber = item.partNumber;
-      const url = item.url;
-
+    for (const { partNumber, url } of urls) {
       if (!Number.isInteger(partNumber) || !url) {
         throw new Error("Invalid presigned URL response.");
       }
-
       presignedUrlsRef.current.set(partNumber, url);
     }
 
+    const startPart = Number.isInteger(response?.startPart)
+      ? response.startPart
+      : Math.min(...urls.map((u) => u.partNumber));
+
     console.log("Presigned URLs received:", {
-      requestedStartPart: startPart,
-      actualParts: urls.map((item) => item.partNumber),
+      serverStartPart: startPart,
+      actualParts: urls.map((u) => u.partNumber),
     });
+
+    return { startPart };
   })();
 
-  urlBatchRequestsRef.current.set(startPart, request);
+  urlRequestRef.current = request;
 
   try {
     return await request;
   } finally {
-    if (urlBatchRequestsRef.current.get(startPart) === request) {
-      urlBatchRequestsRef.current.delete(startPart);
+    if (urlRequestRef.current === request) {
+      urlRequestRef.current = null;
     }
   }
 };
 
 
 const ensurePresignedUrls = async (partNumber) => {
-  if (presignedUrlsRef.current.has(partNumber)) {
-    return;
+  if (presignedUrlsRef.current.has(partNumber)) return;
+
+  // Two attempts: the first may join a request that started before the
+  // previous part finished, so it could carry an older range.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    await fetchPresignedUrls();
+    if (presignedUrlsRef.current.has(partNumber)) return;
   }
 
-  const startPart =
-    Math.floor((partNumber - 1) / URL_BATCH_SIZE) *
-      URL_BATCH_SIZE +
-    1;
-
-  if (!presignedBatchPromisesRef.current.has(startPart)) {
-    const promise = fetchPresignedUrls(startPart).finally(() => {
-      presignedBatchPromisesRef.current.delete(startPart);
-    });
-
-    presignedBatchPromisesRef.current.set(startPart, promise);
-  }
-
-  await presignedBatchPromisesRef.current.get(startPart);
-
-  console.log("Presigned URL check:", {
-    requestedPart: partNumber,
-    batchStart: startPart,
-    availableParts: [...presignedUrlsRef.current.keys()],
-  });
-
-  if (!presignedUrlsRef.current.has(partNumber)) {
-    throw new Error(
-      `No presigned URL available for part ${partNumber}.`
-    );
-  }
+  throw new Error(
+    `No presigned URL available for part ${partNumber}.`
+  );
 };
 
-  const handlesessionResumptionUpdate = async(update)=>{
-    if (update.resumable && update.newHandle) {
-    await interviewsService.sessionResumptionUpdate(update);
-  }
-  }
 
-  const replenishUrlsIfNeeded = () => {
-    const remaining = [
-      ...presignedUrlsRef.current.keys(),
-    ].filter(
-      (partNumber) =>
-        partNumber >= nextPartNumberRef.current
-    ).length;
+ const replenishUrlsIfNeeded = () => {
+  const next = nextPartNumberRef.current;
 
-    if (remaining > URL_BATCH_SIZE / 2) return;
+  const remaining = [...presignedUrlsRef.current.keys()].filter(
+    (partNumber) => partNumber >= next
+  ).length;
 
-    const nextBatchStart =
-      Math.floor(
-        (nextPartNumberRef.current - 1) / URL_BATCH_SIZE
-      ) *
-        URL_BATCH_SIZE +
-      URL_BATCH_SIZE +
-      1;
+  if (remaining > URL_BATCH_SIZE / 2) return;
 
-    if (
-      presignedUrlsRef.current.has(nextBatchStart) ||
-      urlBatchRequestsRef.current.has(nextBatchStart)
-    ) {
-      return;
-    }
-
-    fetchPresignedUrls(nextBatchStart).catch((err) => {
-      recordingErrorRef.current = err;
-      console.error("[Recording] URL refresh failed:", err);
-    });
-  };
+  fetchPresignedUrls().catch((err) => {
+    recordingErrorRef.current = err;
+    console.error("[Recording] URL refresh failed:", err);
+  });
+};
 
   const uploadRecordingPart = (blob) => {
     const uploadTask = uploadQueueRef.current.then(async () => {
@@ -2506,121 +2463,105 @@ const ensurePresignedUrls = async (partNumber) => {
     }
   };
 
-  const startScreenRecording = async (mediaStream) => {
-    if (!mediaStream?.getVideoTracks().some(
-      (track) => track.readyState === "live"
-    )) {
-      throw new Error("Screen sharing video is unavailable.");
-    }
+ const startScreenRecording = async (mediaStream) => {
+  if (!mediaStream?.getVideoTracks().some(
+    (track) => track.readyState === "live"
+  )) {
+    throw new Error("Screen sharing video is unavailable.");
+  }
 
-    if (!mediaStream?.getAudioTracks().some(
-      (track) => track.readyState === "live"
-    )) {
-      throw new Error("Recording audio is unavailable.");
-    }
+  if (!mediaStream?.getAudioTracks().some(
+    (track) => track.readyState === "live"
+  )) {
+    throw new Error("Recording audio is unavailable.");
+  }
 
-    if (!window.MediaRecorder) {
-      throw new Error(
-        "MediaRecorder is not supported in this browser."
-      );
-    }
+  if (!window.MediaRecorder) {
+    throw new Error("MediaRecorder is not supported in this browser.");
+  }
 
-    const mimeType = [
-      "video/webm;codecs=vp9,opus",
-      "video/webm;codecs=vp8,opus",
-      "video/webm",
-    ].find((type) => MediaRecorder.isTypeSupported(type));
+  const mimeType = [
+    "video/webm;codecs=vp9,opus",
+    "video/webm;codecs=vp8,opus",
+    "video/webm",
+  ].find((type) => MediaRecorder.isTypeSupported(type));
 
-    if (!mimeType) {
-      throw new Error(
-        "No supported recording format was found."
-      );
-    }
+  if (!mimeType) {
+    throw new Error("No supported recording format was found.");
+  }
 
-    const result = await interviewsService.startInterviewUpload(
-      interviewId
-    );
+  const result = await interviewsService.startInterviewUpload(interviewId,segmentRef.current);
+  const response = result?.data ?? result;
+  const uploadId = response?.uploadId;
 
-    const response = result?.data ?? result;
-    const uploadId = response?.uploadId;
+  if (!uploadId) {
+    throw new Error("Failed to initialize the video upload.");
+  }
 
-    if (!uploadId) {
-      throw new Error(
-        "Failed to initialize the video upload."
-      );
-    }
+  uploadIdRef.current = uploadId;
+  recordingKeyRef.current = interviewId;
 
-    uploadIdRef.current = uploadId;
-    recordingKeyRef.current = interviewId;
+  // nextPartNumberRef is set below from the server's response
+  completedPartsRef.current = [];
+  recordingChunksRef.current = [];
+  recordingErrorRef.current = null;
+  blobProcessingPromiseRef.current = Promise.resolve();
+  recordingStartedRef.current = false;
+  recordingFinalizedRef.current = false;
+  recordingStopPromiseRef.current = null;
+  uploadQueueRef.current = Promise.resolve();
 
-    nextPartNumberRef.current = 1;
-    completedPartsRef.current = [];
-    recordingChunksRef.current = [];
-    recordingErrorRef.current = null;
-    blobProcessingPromiseRef.current = Promise.resolve();
-    recordingStartedRef.current = false;
-    recordingFinalizedRef.current = false;
-    recordingStopPromiseRef.current = null;
-    uploadQueueRef.current = Promise.resolve();
+  presignedUrlsRef.current.clear();
+  urlRequestRef.current = null;
 
-    presignedUrlsRef.current.clear();
-    urlBatchRequestsRef.current.clear();
-    presignedBatchPromisesRef.current.clear();
+  // 1 on a fresh upload, e.g. 4 when resuming after a refresh
+  const first = await fetchPresignedUrls();
+  nextPartNumberRef.current = first.startPart;
 
-    await fetchPresignedUrls(1);
+  const recorder = new MediaRecorder(mediaStream, { mimeType });
 
-    const recorder = new MediaRecorder(mediaStream, {
-      mimeType,
-    });
+  recorderRef.current = recorder;
 
-    recorderRef.current = recorder;
+  recorder.ondataavailable = (event) => {
+    if (!event.data?.size) return;
 
-    recorder.ondataavailable = (event) => {
-      if (!event.data?.size) return;
-
-      blobProcessingPromiseRef.current =
-        blobProcessingPromiseRef.current
-          .then(async () => {
-            if (recordingErrorRef.current) return;
-
-            await processRecordingBlob(event.data);
-          })
-          .catch((err) => {
-            recordingErrorRef.current = err;
-
-            console.error(
-              "[Recording] Blob processing failed:",
-              err
-            );
-          });
-    };
-
-    recorder.onstop = () => {
-      console.log("[Recording] MediaRecorder stopped.");
-    };
-
-    recorder.onerror = (event) => {
-      recordingErrorRef.current =
-        event.error ||
-        new Error("Screen recording failed.");
-
-      console.error("[Recording] Recorder error:", event);
-    };
-
-    recorder.start(5000);
-    recordingStartedRef.current = true;
-
-    mediaStream.getVideoTracks()[0].addEventListener(
-      "ended",
-      () => {
-        if (recorder.state !== "inactive") {
-          recorder.stop();
-        }
-      },
-      { once: true }
-    );
-
+    blobProcessingPromiseRef.current = blobProcessingPromiseRef.current
+      .then(async () => {
+        if (recordingErrorRef.current) return;
+        await processRecordingBlob(event.data);
+      })
+      .catch((err) => {
+        recordingErrorRef.current = err;
+        console.error("[Recording] Blob processing failed:", err);
+        setError("Recording stopped unexpectedly.");
+      });
   };
+
+  recorder.onstop = () => {
+    console.log("[Recording] MediaRecorder stopped.");
+  };
+
+  recorder.onerror = (event) => {
+    recordingErrorRef.current =
+      event.error || new Error("Screen recording failed.");
+
+    console.error("[Recording] Recorder error:", event);
+    setError("Recording stopped unexpectedly.");
+  };
+
+  recorder.start(5000);
+  recordingStartedRef.current = true;
+
+  mediaStream.getVideoTracks()[0].addEventListener(
+    "ended",
+    () => {
+      if (recorder.state !== "inactive") {
+        recorder.stop();
+      }
+    },
+    { once: true }
+  );
+};
 
   const stopScreenRecording = async () => {
     if (recordingStopPromiseRef.current) {
@@ -2699,7 +2640,7 @@ const ensurePresignedUrls = async (partNumber) => {
 
       const result =
         await interviewsService.InterviewVideoComplete(
-          interviewId,
+          segmentRef.current,
           uploadIdRef.current,
         );
 
@@ -2713,19 +2654,21 @@ const ensurePresignedUrls = async (partNumber) => {
         );
       }
 
-      recordingFinalizedRef.current = true;
-      recordingStartedRef.current = false;
+     recordingFinalizedRef.current = true;
+recordingStartedRef.current = false;
 
-      uploadIdRef.current = null;
-      recordingKeyRef.current = null;
+uploadIdRef.current = null;
+recordingKeyRef.current = null;
 
-      recorderRef.current = null;
-      recordingChunksRef.current = [];
+recorderRef.current = null;
+recordingChunksRef.current = [];
 
-      completedPartsRef.current = [];
-      presignedUrlsRef.current.clear();
+completedPartsRef.current = [];
+presignedUrlsRef.current.clear();
+urlRequestRef.current = null;       
+nextPartNumberRef.current = 1;     
 
-      recordingStreamRef.current = null;
+recordingStreamRef.current = null;
 
 
       console.log("[Recording] Upload completed:", response);
@@ -2919,6 +2862,11 @@ const ensurePresignedUrls = async (partNumber) => {
     stopRecordingAudioPipeline,
   ]);
 
+
+  const handlesessionResumptionUpdate = async(update,interviewId)=>{
+    await interviewsService.sessionResumptionUpdate(update,interviewId)
+  }
+
   useEffect(() => {
     return () => {
       endingRef.current = true;
@@ -3090,15 +3038,30 @@ const ensurePresignedUrls = async (partNumber) => {
 
       recordingStreamRef.current = combinedRecordingStream;
 
-      await startScreenRecording(combinedRecordingStream);
 
       const result = await interviewsService.getLiveSession(
         id,
         isPublic
       );
-
       const token = result?.token ?? result?.data?.token;
-      const sessionResumptionHandle = result?.sessionResumptionHandle ?? result?.data?.sessionResumptionHandle
+
+      const serverElapsed = Number(
+  result?.elapsedSeconds ?? result?.data?.elapsedSeconds ?? 0
+);
+const initialElapsed =
+  Number.isFinite(serverElapsed) && serverElapsed > 0
+    ? Math.floor(serverElapsed)
+    : 0;
+
+       const interviewStartedAt = Date.now() - initialElapsed * 1000;
+      const sessionResumptionHandle = result?.sessionResumptionHandle ?? result?.data?.sessionResumptionHandle;
+       segmentRef.current = result?.segmentId ?? result?.data?.segmentId;
+
+
+    await startScreenRecording(combinedRecordingStream);
+
+
+      console.log(sessionResumptionHandle,result?.data?.sessionResumptionHandle,"sessionresumption")
 
       if (!token || typeof token !== "string") {
         throw new Error(
@@ -3129,7 +3092,6 @@ const ensurePresignedUrls = async (partNumber) => {
         },
       });
   const config = {
-  // responseModalities: [Modality.AUDIO],
   ...(sessionResumptionHandle
     ? {
         sessionResumption: {
@@ -3147,8 +3109,8 @@ const ensurePresignedUrls = async (partNumber) => {
 
             console.log("[Gemini Live] Connected");
 
-            startedAtRef.current = Date.now();
-            setElapsed(0);
+           startedAtRef.current = interviewStartedAt;   
+            setElapsed(initialElapsed); 
             setStage("live");
             setStarting(false);
           },
@@ -3157,9 +3119,11 @@ onmessage: async (message) => {
   if (endingRef.current) return;
 
 
-  if (message.sessionResumptionUpdate) {
+  if (message.sessionResumptionUpdate) 
+  {
      const update = message.sessionResumptionUpdate;
      handlesessionResumptionUpdate(update,interviewId);
+     console.log("resempted");
   }
 
   const content = message.serverContent;

@@ -4,7 +4,6 @@ import { VideoOff } from "lucide-react";
 import { initials } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-// Candidate camera tile. Pass a MediaStream via `stream` to render the real feed; otherwise a placeholder is shown.
 export function CandidateVideo({ stream, cameraOn = true, name = "", className, compact = false }) {
   const ref = useRef(null);
   useEffect(() => { if (ref.current && stream) ref.current.srcObject = stream; }, [stream]);

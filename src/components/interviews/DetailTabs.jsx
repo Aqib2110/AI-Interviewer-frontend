@@ -3,14 +3,12 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Copy,
-  Send,
   Radio,
   Clock3,
   Hourglass,
   ChevronDown,
   Play,
   Download,
-  Sparkles,
   Bot,
   User,
   Video,
@@ -935,10 +933,9 @@ export function RecordingTab({
     isOrganization ?? context === "organization";
 
   const videoKey = interview?.videoKey || detail?.videoKey || null;
-
-  // The interview object contains videoKey as a string.
-  // Use the interview object for recording metadata.
-  const recording = videoKey
+  const videoUrls = interview?.videoUrls  || detail?.videoUrls || null;
+  console.log(videoUrls,"videourls");
+  const recording = videoUrls.length
     ? {
         ...interview,
         videoKey,
@@ -971,7 +968,7 @@ export function RecordingTab({
       <div className="space-y-3">
        <VideoPlayer
   recording={{
-    videoUrl: interview.videoUrl,
+    videoUrls: interview.videoUrls,
     videoKey: interview.videoKey,
     status: interview.status,
     durationSec: interview.durationSec,

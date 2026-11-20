@@ -81,16 +81,16 @@ export const interviewsService = {
    })
   
   },
-  startInterviewUpload(interviewId){
+  startInterviewUpload(interviewId,segmentId){
     return publicRequest("/api/v1/interview/upload/start",{
       method:"POST",
-      body:JSON.stringify({interviewId})
+      body:JSON.stringify({interviewId,segmentId})
     })
   },
-  getInterviewVideoUrls(interviewId, uploadId){
+  getInterviewVideoUrls(interviewId, uploadId,segmentId){
    return publicRequest("/api/v1/interview/video/sign-url",{
     method:"POST",
-    body:JSON.stringify({interviewId, uploadId})
+    body:JSON.stringify({interviewId, uploadId,segmentId})
    })
   },
   sessionResumptionUpdate(update,interviewId)
@@ -105,10 +105,10 @@ export const interviewsService = {
       }
     );
   },
-   InterviewVideoComplete(interviewId, uploadId){
-   return publicRequest("/api/v1/interview/upload/complete",{
+   InterviewVideoComplete(segmentId, uploadId){
+   return publicRequest(`/api/v1/interview/segments/${segmentId}/complete`,{
     method:"POST",
-    body:JSON.stringify({interviewId, uploadId})
+    body:JSON.stringify({uploadId})
    })
   },
   create(payload,context ) {
