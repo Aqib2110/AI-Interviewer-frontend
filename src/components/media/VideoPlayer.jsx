@@ -118,8 +118,11 @@ export function VideoPlayer({
   large = false,
   startAt = 0,
   onExpand,
+  setduration=()=>{}
 }) {
+
   /* ---------- segments (one per URL) ---------- */
+const [isFullscreen, setIsFullscreen] = useState(false);
 
   const rawSegments = normalizeSegments(recording);
   const segKey = JSON.stringify(rawSegments);
@@ -136,16 +139,12 @@ export function VideoPlayer({
   const [speed, setSpeed] = useState(1);
   const [time, setTime] = useState(startAt); // GLOBAL time across all segments
   const [error, setError] = useState("");
-  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const [active, setActive] = useState(0); // which <video> is visible (0 | 1)
-  const [segIndex, setSegIndex] = useState(0); // which URL the visible one plays
   const [slots, setSlots] = useState([0, segments.length > 1 ? 1 : -1]); // URL index loaded in each <video>
   const [durations, setDurations] = useState(() =>
     segments.map((s) => s.duration)
   );
-
-  /* ---------- refs (mirrors for async callbacks) ---------- */
 
   const containerRef = useRef(null);
   const videoRefs = useRef([null, null]);
@@ -182,10 +181,14 @@ export function VideoPlayer({
   durationsRef.current = durations;
   totalRef.current = total;
 
-  const markers = Array.isArray(recording?.markers) ? recording.markers : [];
-  const activeMarker = markers
-    .filter((item) => Number(item?.at) <= time)
-    .at(-1);
+
+  useEffect(()=>{
+  setduration(total);
+  },[total])
+  // const markers = Array.isArray(recording?.markers) ? recording.markers : [];
+  // const activeMarker = markers
+  //   .filter((item) => Number(item?.at) <= time)
+  //   .at(-1);
 
   /* ---------- low-level helpers ---------- */
 
@@ -240,7 +243,6 @@ export function VideoPlayer({
     slotsRef.current = nextSlots;
 
     setActive(slot);
-    setSegIndex(idx);
     setSlots(nextSlots);
 
     const nv = videoRefs.current[slot];
@@ -474,7 +476,6 @@ export function VideoPlayer({
     startRef.current = start;
 
     setActive(0);
-    setSegIndex(0);
     setSlots(initialSlots);
     setDurations(segments.map((s) => s.duration));
     setPlaying(false);
@@ -658,11 +659,11 @@ export function VideoPlayer({
           </span>
         </div>
 
-        {activeMarker && (
+        {/* {activeMarker && (
           <span className="pointer-events-none absolute bottom-3 left-3 z-10 rounded bg-black/60 px-2 py-1 text-[11px] text-white">
             {activeMarker.label || "Chapter"}
           </span>
-        )}
+        )} */}
 
         {!playing && !live && hasVideo && (
           <button
@@ -704,7 +705,7 @@ export function VideoPlayer({
             className="block w-full cursor-pointer accent-blue-500 disabled:cursor-not-allowed"
           />
 
-          {markers.map((item, index) => {
+          {/* {markers.map((item, index) => {
             const position =
               total > 0 ? clamp((Number(item.at) / total) * 100, 0, 100) : 0;
 
@@ -724,7 +725,7 @@ export function VideoPlayer({
                 style={{ left: `${position}%` }}
               />
             );
-          })}
+          })} */}
         </div>
 
         {/* Controls */}
@@ -786,18 +787,7 @@ export function VideoPlayer({
               {speed}x
             </button>
 
-            {/* Opens your parent's modal / large player (unchanged behaviour) */}
-            {onExpand && !large && !isFullscreen && (
-              <Ctl
-                onClick={() => onExpand(time)}
-                label="Open large player"
-                testId="video-expand-button"
-              >
-                <PanelTopOpen className="h-4 w-4" />
-              </Ctl>
-            )}
 
-            {/* Real browser fullscreen */}
             <Ctl
               onClick={() => void toggleFullscreen()}
               label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}

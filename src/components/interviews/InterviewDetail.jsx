@@ -45,11 +45,15 @@ export function InterviewDetail({ id, onBack }) {
 
   const Active = TABS.find((t) => t.key === tab)?.C ?? OverviewTab;
 
-  const openVideo = (at = 0) => {
-    if (data?.recording?.status === "ready") {
-      setVideo({ open: true, at });
-    }
-  };
+const openVideo = (at = 0) => {
+  const urls = data?.candidate?.videoUrls;
+  console.log(data.candidate.videoUrls,"videosssss")
+  const hasVideo = Array.isArray(urls) ? urls.length > 0 : Boolean(urls);
+
+  if (!hasVideo) return;
+
+  setVideo({ open: true, at });
+};
 
   return (
     <div className="space-y-5" data-testid="interview-detail">
@@ -97,13 +101,16 @@ export function InterviewDetail({ id, onBack }) {
         </motion.div>
       </AnimatePresence>
 
-      <VideoModal
+     {
+      tab === "overview" &&
+      <>
+       <VideoModal
         open={video?.open}
         startAt={video?.at}
         onOpenChange={(open) =>
           setVideo((v) => ({ ...v, open }))
         }
-        recording={data?.recording}
+        recording={data?.candidate}
         interview={data?.candidate?.interview}
       />
 
@@ -113,6 +120,8 @@ export function InterviewDetail({ id, onBack }) {
         resume={data?.candidate?.resume}
         candidate={data?.candidate?.resume}
       />
+      </>
+     }
     </div>
   );
 }

@@ -86,13 +86,18 @@ export default function InterviewsPage() {
            </motion.div>
          </AnimatePresence>
    
-         <VideoModal
+       { tab == "overview" &&
+           <>
+           <VideoModal
            open={video.open}
            startAt={video.at}
            onOpenChange={(open) =>
              setVideo((v) => ({ ...v, open }))
            }
-           recording={data?.report?.recording}
+           recording={{
+            videoUrls:data?.report?.videoUrls,
+            status:data?.report?.status,
+           }}
            interview={data?.report}
          />
    
@@ -100,8 +105,9 @@ export default function InterviewsPage() {
            open={resumeOpen}
            onOpenChange={setResumeOpen}
            resume={data?.report?.interviewCandidate?.resume}
-           candidate={data?.report?.interviewCandidate?.resume}
-         />
+           candidate={data?.report?.interviewCandidate?.name}
+         />       
+         </>   }
        </div>
      );
 }

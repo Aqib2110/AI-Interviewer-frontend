@@ -929,6 +929,8 @@ export function RecordingTab({
 }) {
   const interview = getInterview(detail);
   console.log("intervide,",interview)
+  const [duration,setduration] = useState(null);
+
   const organizationView =
     isOrganization ?? context === "organization";
 
@@ -961,28 +963,20 @@ export function RecordingTab({
     );
   }
 
-  const markers = recording?.markers || [];
 
   return (
     <div className="grid gap-5 xl:grid-cols-[1fr_300px]">
-      <div className="space-y-3">
+      <div className="space-y-3 h-600">
        <VideoPlayer
   recording={{
     videoUrls: interview.videoUrls,
-    videoKey: interview.videoKey,
     status: interview.status,
-    durationSec: interview.durationSec,
-    markers: interview.markers ?? [],
   }}
   candidateName={getCandidateName(detail)}
-   durationMinutes={interview.durationMinutes}
+  durationMinutes={interview.durationMinutes}
   onExpand={onOpenVideo}
+  setduration={setduration}
 />
-
-        <Button onClick={() => onOpenVideo(0)}>
-          <Play className="mr-2 h-4 w-4" />
-          Watch interview
-        </Button>
       </div>
 
       <div className="space-y-4">
@@ -994,15 +988,8 @@ export function RecordingTab({
             ["Status", recording?.status || "Available"],
             [
               "Duration",
-              recording?.durationSec != null
-                ? formatClock(recording.durationSec)
-                : "—",
-            ],
-            [
-              "File size",
-              recording?.sizeMb != null
-                ? `${recording.sizeMb} MB`
-                : "—",
+               formatClock(duration) 
+                || "—",
             ],
           ].map(([label, value]) => (
             <div
@@ -1017,28 +1004,6 @@ export function RecordingTab({
           ))}
         </Panel>
 
-        <Panel title="Chapters" bodyClassName="p-2">
-          {markers.length ? (
-            markers.map((marker, index) => (
-              <button
-                key={marker?.at ?? index}
-                onClick={() => onOpenVideo(marker?.at || 0)}
-                className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm hover:bg-slate-50"
-              >
-                <span className="font-mono text-xs text-blue-600">
-                  {formatClock(marker?.at || 0)}
-                </span>
-                <span className="text-slate-700">
-                  {marker?.label || "Chapter"}
-                </span>
-              </button>
-            ))
-          ) : (
-            <p className="px-3 py-2 text-sm text-slate-500">
-              No chapters available.
-            </p>
-          )}
-        </Panel>
       </div>
     </div>
   );
