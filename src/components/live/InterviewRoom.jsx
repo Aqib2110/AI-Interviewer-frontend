@@ -23,6 +23,36 @@ const MODEL = process.env.REACT_APP_GEMINI_LIVE_MODEL;
 const INTERVIEW_DURATION = 8 * 60;
 
 
+async function putWithRetry(url, blob, attempts = 4) {
+  let lastError;
+
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      const response = await fetch(url, { method: "PUT", body: blob });
+
+      if (response.ok) return response;
+
+      const details = await response.text().catch(() => "");
+
+      lastError = new Error(`Upload failed: ${response.status} ${details}`);
+
+      if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+        throw lastError;
+      }
+    } catch (err) {
+      lastError = err;
+
+      if (err?.message?.startsWith("Upload failed: 4") && !err.message.startsWith("Upload failed: 429")) {
+        throw err;
+      }
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 1000 * 2 ** attempt));
+  }
+
+  throw lastError;
+}
+
 function pickRecordingMimeType() {
   if (typeof window === "undefined" || !window.MediaRecorder) return null;
 
@@ -99,7 +129,7 @@ export function InterviewRoom({
   const recordingStopPromiseRef = useRef(null);
   const uploadQueueRef = useRef(Promise.resolve());
 
-  const PART_SIZE = 10 * 1024 * 1024;
+  const PART_SIZE = 5 * 1024 * 1024;
   const URL_BATCH_SIZE = 10;
 
   const interviewTitle = interview?.title || "Interview";
@@ -249,17 +279,12 @@ export function InterviewRoom({
         );
       }
 
-      const response = await fetch(url, {
-        method: "PUT",
-        body: blob,
-      });
+      let response;
 
-      if (!response.ok) {
-        const details = await response.text().catch(() => "");
-
-        throw new Error(
-          `Part ${partNumber} upload failed: ${response.status} ${details}`
-        );
+      try {
+        response = await putWithRetry(url, blob);
+      } catch (err) {
+        throw new Error(`Part ${partNumber} upload failed: ${err?.message || err}`);
       }
 
       const etag = response.headers.get("ETag");
@@ -402,7 +427,7 @@ export function InterviewRoom({
         .catch((err) => {
           recordingErrorRef.current = err;
           console.error("[Recording] Blob processing failed:", err);
-          setError("Recording stopped unexpectedly.");
+          setError(`Recording stopped unexpectedly: ${err?.message || err}`);
         });
     };
 
@@ -415,7 +440,9 @@ export function InterviewRoom({
         event.error || new Error("Recording failed.");
 
       console.error("[Recording] Recorder error:", event);
-      setError("Recording stopped unexpectedly.");
+      setError(
+        `Recording stopped unexpectedly: ${recordingErrorRef.current?.message || "recorder error"}`
+      );
     };
 
     recorder.start(5000);
@@ -483,13 +510,15 @@ export function InterviewRoom({
 
       await blobProcessingPromiseRef.current;
 
-      if (recordingErrorRef.current) {
-        throw recordingErrorRef.current;
-      }
+      const recordingError = recordingErrorRef.current;
 
       await uploadQueueRef.current;
 
-      await flushRemainingRecording();
+      try {
+        await flushRemainingRecording();
+      } catch (flushError) {
+        console.error("[Recording] Final flush failed:", flushError);
+      }
 
       await uploadQueueRef.current;
 
@@ -504,8 +533,9 @@ export function InterviewRoom({
       );
 
       if (parts.length === 0) {
-        throw new Error(
-          "The recording contains no uploaded parts."
+        throw (
+          recordingError ||
+          new Error("The recording contains no uploaded parts.")
         );
       }
 
@@ -566,6 +596,44 @@ export function InterviewRoom({
     }, 1000);
 
     return () => window.clearInterval(timer);
+  }, [stage]);
+
+  useEffect(() => {
+    if (stage !== "live") return;
+
+    let lock = null;
+    let cancelled = false;
+
+    const acquire = async () => {
+      try {
+        if (
+          "wakeLock" in navigator &&
+          document.visibilityState === "visible"
+        ) {
+          const next = await navigator.wakeLock.request("screen");
+
+          if (cancelled) {
+            next.release().catch(() => { });
+            return;
+          }
+
+          lock = next;
+        }
+      } catch { }
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") acquire();
+    };
+
+    acquire();
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisibility);
+      lock?.release().catch(() => { });
+    };
   }, [stage]);
 
   const stopQueuedAudio = useCallback(() => {
@@ -1762,7 +1830,3 @@ function arrayBufferToBase64(buffer) {
 
   return window.btoa(binary);
 }
-
-
-
-
