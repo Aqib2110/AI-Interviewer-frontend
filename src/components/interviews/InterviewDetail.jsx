@@ -111,7 +111,7 @@ const openVideo = (at = 0) => {
           setVideo((v) => ({ ...v, open }))
         }
         recording={data?.candidate}
-        interview={data?.candidate?.interview}
+        interview={data?.candidate}
         messages={data?.candidate?.Message}
       />
 

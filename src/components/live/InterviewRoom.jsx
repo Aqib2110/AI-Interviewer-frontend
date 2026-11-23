@@ -20,9 +20,6 @@ import { interviewsService } from "@/services";
 import { cn } from "@/lib/utils";
 
 const MODEL = process.env.REACT_APP_GEMINI_LIVE_MODEL;
-const INTERVIEW_DURATION = 8 * 60;
-
-
 async function putWithRetry(url, blob, attempts = 4) {
   let lastError;
 
@@ -51,6 +48,16 @@ async function putWithRetry(url, blob, attempts = 4) {
   }
 
   throw lastError;
+}
+
+function detectDeviceType() {
+  if (typeof navigator === "undefined") return null;
+
+  const isMobile =
+    navigator.userAgentData?.mobile ||
+    /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+  return isMobile ? "mobile" : "desktop";
 }
 
 function pickRecordingMimeType() {
@@ -134,6 +141,7 @@ export function InterviewRoom({
   const recordingFinalizedRef = useRef(false);
   const recordingStopPromiseRef = useRef(null);
   const uploadQueueRef = useRef(Promise.resolve());
+  const interviewDurationRef = useRef(null);
 
   const PART_SIZE = 5 * 1024 * 1024;
   const URL_BATCH_SIZE = 10;
@@ -146,7 +154,7 @@ export function InterviewRoom({
 
   const progress = Math.min(
     100,
-    (elapsed / INTERVIEW_DURATION) * 100
+    (elapsed / interviewDurationRef?.current) * 100
   );
 
   const formatClock = (seconds) =>
@@ -1004,7 +1012,11 @@ export function InterviewRoom({
 
       recordingStreamRef.current = combinedRecordingStream;
 
-      const result = await interviewsService.getLiveSession(id, isPublic);
+      const result = await interviewsService.getLiveSession(id, isPublic, {
+        recordingMode: recordingModeRef.current,
+        mimeType: pickRecordingMimeType() || null,
+        deviceType: detectDeviceType(),
+      });
       const token = result?.token ?? result?.data?.token;
 
       const serverElapsed = Number(
@@ -1014,7 +1026,7 @@ export function InterviewRoom({
         Number.isFinite(serverElapsed) && serverElapsed > 0
           ? Math.floor(serverElapsed)
           : 0;
-
+      interviewDurationRef.current = result?.interview_duration * 60 || null;
       const interviewStartedAt = Date.now() - initialElapsed * 1000;
       const sessionResumptionHandle =
         result?.sessionResumptionHandle ??

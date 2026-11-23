@@ -67,12 +67,12 @@ export const interviewsService = {
     slug,askedAtMs,askedAt,segmentId})
     })
   },
-  getLiveSession(id,isPublic,) {
+  getLiveSession(id,isPublic,interview_meta) {
     if(isPublic)
     {
  return publicRequest("/api/v1/organization/interview/session",{
     method:"POST",
-    body:JSON.stringify({slug:id})
+    body:JSON.stringify({slug:id,recordingMode:interview_meta?.recordingMode,mimeType: interview_meta?.mimeType,deviceType:interview_meta?.deviceType})
    })
     }
    return authenticatedRequest("/api/v1/user/interview/session",{

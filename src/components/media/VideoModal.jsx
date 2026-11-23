@@ -56,7 +56,7 @@ export function VideoModal({ recording, interview, startAt = 0, messages }) {
       seconds: message.askedAtMs / 1000,
     });
   };
-
+console.log(interview,"interviewplayer")
   return (
     <div className="space-y-4">
       <VideoPlayer
@@ -66,6 +66,8 @@ export function VideoModal({ recording, interview, startAt = 0, messages }) {
           status: recording.status,
         }}
         candidateName={interview?.candidate?.name}
+        recordingMode={interview?.InterviewSegment}
+        messages={interview?.Message}
         large
         startAt={startAt}
       />

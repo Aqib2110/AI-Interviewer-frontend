@@ -14,52 +14,6 @@ import {
 import { formatClock, initials } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-export function Waveform({ bars = 18, className, color = "bg-blue-400" }) {
-  return (
-    <span
-      className={cn("flex h-6 items-center gap-[3px]", className)}
-      aria-hidden="true"
-    >
-      {Array.from({ length: bars }).map((_, i) => (
-        <span
-          key={i}
-          className={cn("wave-bar w-[3px] rounded-full", color)}
-          style={{
-            height: `${30 + ((i * 37) % 70)}%`,
-            animationDelay: `${(i % 6) * 0.12}s`,
-          }}
-        />
-      ))}
-    </span>
-  );
-}
-
-export function CandidateFeed({ name, className }) {
-  return (
-    <div
-      className={cn(
-        "absolute inset-0 overflow-hidden bg-[#0d1320]",
-        className
-      )}
-    >
-      <div className="absolute inset-0 grid-lines opacity-60" />
-
-      <svg
-        viewBox="0 0 400 225"
-        className="absolute inset-0 h-full w-full"
-        preserveAspectRatio="xMidYMax slice"
-        aria-hidden="true"
-      >
-        <ellipse cx="200" cy="250" rx="120" ry="78" fill="#1c2638" />
-        <circle cx="200" cy="112" r="44" fill="#243149" />
-      </svg>
-
-      <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 font-display text-2xl font-semibold text-slate-400/80">
-        {initials(name)}
-      </span>
-    </div>
-  );
-}
 
 const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 
@@ -102,6 +56,40 @@ function afterFrame(video, fn) {
   }
 }
 
+function CaptionOverlay({ messages, time }) {
+  const questions = useMemo(
+    () =>
+      (Array.isArray(messages) ? messages : [])
+        .filter((m) => m?.aiMsg && Number.isFinite(Number(m.askedAtMs)))
+        .map((m) => ({ ...m, startSec: Number(m.askedAtMs) / 1000 }))
+        .sort((a, b) => a.startSec - b.startSec),
+    [messages]
+  );
+
+  const current = useMemo(() => {
+    let found = null;
+    for (const q of questions) {
+      if (q.startSec <= time) found = q;
+      else break;
+    }
+    return found;
+  }, [questions, time]);
+
+  if (!current) return null;
+
+  return (
+    <div className="pointer-events-none absolute inset-x-3 bottom-10 z-10 flex justify-center">
+      <p
+        key={current.id ?? current.startSec}
+        className="max-w-[90%] rounded-md bg-black/70 px-3 py-2 text-center text-sm leading-snug text-white"
+        data-testid="video-caption"
+      >
+        {current.aiMsg}
+      </p>
+    </div>
+  );
+}
+
 export function VideoPlayer({
   recording,
   durationMinutes,
@@ -110,10 +98,11 @@ export function VideoPlayer({
   startAt = 0,
   onExpand,
   playerRef,
-  setduration=()=>{}
+  recordingMode,
+  messages,
+  setduration = () => {},
 }) {
-
-const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const rawSegments = normalizeSegments(recording);
   const segKey = JSON.stringify(rawSegments);
@@ -168,9 +157,9 @@ const [isFullscreen, setIsFullscreen] = useState(false);
   durationsRef.current = durations;
   totalRef.current = total;
 
-  useEffect(()=>{
-  setduration(total);
-  },[total])
+  useEffect(() => {
+    setduration(total);
+  }, [total]);
 
   const setDurationFor = (idx, value) => {
     if (idx < 0 || !Number.isFinite(value) || value <= 0) return;
@@ -560,6 +549,8 @@ const [isFullscreen, setIsFullscreen] = useState(false);
   const seekDisabled = controlsDisabled || total <= 0;
   const stageClickable = !large && onExpand && !isFullscreen;
 
+  const showCaptions = recordingMode === "camera_only";
+
   return (
     <div
       ref={containerRef}
@@ -645,6 +636,10 @@ const [isFullscreen, setIsFullscreen] = useState(false);
           </span>
         </div>
 
+        {showCaptions && hasVideo && (
+          <CaptionOverlay messages={messages} time={time} />
+        )}
+
         {!playing && !live && hasVideo && (
           <button
             type="button"
@@ -683,7 +678,6 @@ const [isFullscreen, setIsFullscreen] = useState(false);
             aria-label="Seek video"
             className="block w-full cursor-pointer accent-blue-500 disabled:cursor-not-allowed"
           />
-
         </div>
 
         <div className="flex items-center gap-1 text-slate-300">
@@ -775,3 +769,19 @@ const Ctl = ({ children, onClick, disabled, label, testId }) => (
     {children}
   </button>
 );
+
+export const ScreenAndCameraPlayer = (props) => (
+  <VideoPlayer {...props} recordingMode="screen_and_camera" />
+);
+
+export const CameraOnlyPlayer = (props) => (
+  <VideoPlayer {...props} recordingMode="camera_only" />
+);
+
+export function InterviewPlayer(props) {
+  return props.recordingMode === "camera_only" ? (
+    <CameraOnlyPlayer {...props} />
+  ) : (
+    <ScreenAndCameraPlayer {...props} />
+  );
+}

@@ -57,29 +57,11 @@ const pendInterviews = data?.interviews?.filter(
 
             <StatCard index={1} label="Completed" value={complInterviews} hint="Reports generatedssss" icon={CheckCircle2} testId="stat-completed" />
             <StatCard index={2} label="Pending" value={pendInterviews} hint="Invited or in progress" icon={Hourglass} testId="stat-pending" />
-            <StatCard index={3} label="Avg. candidate score" value={Number(data?.stats?.avgScore ?? 0).toFixed(2)} suffix="/100" hint="Across completed interviews" icon={Gauge} testId="stat-average-score" />
+            <StatCard index={3} label="Avg. candidate score" value={data?.stats?.avgScore
+  ? Number(data.stats.avgScore).toFixed(2)
+  : "0"} suffix="/100" hint="Across completed interviews" icon={Gauge} testId="stat-average-score" />
             <StatCard index={4} label="Candidates" value={candidates?.length} hint="In active pipelines" icon={Users} testId="stat-candidates" />
           </div>
-          {/* <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
-            <Panel title="Interview activity" description="Completed interviews per week and average score" testId="activity-chart">
-              <div className="h-[260px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={data?.weeklyTrend} margin={{ left: -18, right: 4, top: 8 }}>
-                    <CartesianGrid vertical={false} stroke="#EEF2F7" />
-                    <XAxis dataKey="week" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "#94A3B8" }} />
-                    <YAxis yAxisId="l" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "#94A3B8" }} />
-                    <YAxis yAxisId="r" orientation="right" domain={[50, 100]} hide />
-                    <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 12 }} cursor={{ fill: "#F1F5F9" }} />
-                    <Bar yAxisId="l" dataKey="interviews" name="Interviews" fill="#0F172A" radius={[3, 3, 0, 0]} barSize={22} />
-                    <Line yAxisId="r" dataKey="avgScore" name="Avg score" stroke="#2563EB" strokeWidth={2} dot={{ r: 3, fill: "#2563EB" }} />
-                  </ComposedChart>
-                </ResponsiveContainer>
-              </div>
-            </Panel>
-            <Panel title="Skill performance" description="Average score per skill across evaluated candidates" bodyClassName="space-y-4" testId="skill-performance">
-              {data?.skillPerformance?.map((s) => <SkillBar key={s.name} name={s.name} score={s.score} compact />)}
-            </Panel>
-          </div> */}
           <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
             <Panel title="Recent interviews" actions={<Link to="/app/interviews" className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:underline" data-testid="overview-all-interviews-link">View all <ArrowRight className="h-3 w-3" /></Link>}>
               <InterviewRows items={recentInterviews} />
@@ -188,7 +170,9 @@ function IndividualOverview() {
             <StatCard
               index={3}
               label="Average score"
-              value={Number(data?.stats?.avgScore ?? 0).toFixed(2)}
+              value={data?.stats?.avgScore
+  ? Number(data.stats.avgScore).toFixed(2)
+  : "0"}
               suffix={data.stats?.avgScore != null ? "/100" : ""}
               icon={Gauge}
               testId="stat-average-score"
