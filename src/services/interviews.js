@@ -48,14 +48,14 @@ export const interviewsService = {
     method:"GET"
    })
   },
-  saveExchange({interviewId,slug,aiMsg,userMsg,organizationId,isPublic=false})
+  saveExchange({interviewId,slug,aiMsg,userMsg,organizationId,isPublic=false,askedAt,askedAtMs,segmentId})
   {
     console.log(interviewId,slug,aiMsg,userMsg,organizationId,isPublic=false,".......567")
     if(!isPublic && !organizationId)
     {
     return authenticatedRequest("/api/v1/user/interview/message",{
     method:"POST",
-    body:JSON.stringify({interviewId,aiMsg,userMsg}) })
+    body:JSON.stringify({interviewId,aiMsg,userMsg,askedAtMs,askedAt,segmentId}) })
     }
     console.log("reach");
     return publicRequest("/api/v1/organization/interview/message",{
@@ -64,10 +64,10 @@ export const interviewsService = {
     userMsg,
     aiMsg,
     interviewId,
-    slug})
+    slug,askedAtMs,askedAt,segmentId})
     })
   },
-  getLiveSession(id,isPublic) {
+  getLiveSession(id,isPublic,) {
     if(isPublic)
     {
  return publicRequest("/api/v1/organization/interview/session",{

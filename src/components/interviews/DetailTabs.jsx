@@ -31,6 +31,7 @@ import {
 } from "./ReportBlocks";
 import { formatClock, scoreTone } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { formatOffset } from "../media/VideoModal";
 
 const getInterview = (detail = {}) => detail || {};
 
@@ -59,9 +60,9 @@ const getReportRecord = (detail = {}) => {
 
 const getMessages = (detail = {}) => {
   const interview = getInterview(detail);
-  console.log(JSON.parse(interview?.Report?.content)?.transcript,"transcript");
+  console.log(interview?.Message,"transcriptsssssssss");
   return (
-    interview?.Report?.content ? JSON.parse(interview?.Report?.content)?.transcript : []
+    interview?.Message || []
   );
 };
 
@@ -154,16 +155,9 @@ const getMessageAnswer = (message = {}) =>
   "";
 
 const getMessageTime = (message = {}) => {
-  if (!message?.createdAt) return "";
+  if (!message?.askedAtMs) return "";
 
-  const date = new Date(message.createdAt);
-
-  if (Number.isNaN(date.getTime())) return "";
-
-  return date.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+ return formatOffset(message?.askedAtMs);
 };
 
 export function NotReady({ interview = {}, what = "report" }) {
@@ -559,7 +553,7 @@ export function SkillsTab({ detail = {}, context, isOrganization }) {
 
 function QA({ item = {}, index = 0, onJump = () => {} }) {
   const [open, setOpen] = useState(index === 0);
-
+  console.log("itemssssss",item)
   const question = getMessageQuestion(item);
   const answer = getMessageAnswer(item);
   const time = getMessageTime(item);
@@ -631,15 +625,6 @@ function QA({ item = {}, index = 0, onJump = () => {} }) {
                   </p>
                 </div>
               </div>
-
-              {time && (
-                <button
-                  onClick={() => onJump(item?.createdAt)}
-                  className="ml-10 text-xs text-blue-600 hover:underline"
-                >
-                  Message time: {time}
-                </button>
-              )}
             </div>
           </motion.div>
         )}
@@ -655,10 +640,10 @@ export function TranscriptTab({
   isOrganization,
 }) {
   const interview = getInterview(detail);
-    console.log(interview,"interview");
+    console.log(interview,"interviewmmmmmmmmmmmmmm");
 
   const messages = getMessages(detail);
-  console.log(messages,"messages");
+  console.log(messages,"messagesssssssssssssssssssssssssss");
   const organizationView =
     isOrganization ?? context === "organization";
 

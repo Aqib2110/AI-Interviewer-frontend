@@ -35,7 +35,7 @@ export default function AppLayout() {
 
   
   return (
-    <div className="min-h-screen bg-[hsl(210_40%_98%)]">
+    <div className="min-h-screen bg-[hsl(210_40%_98%)] overflow-hidden">
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 border-r border-slate-200 bg-white lg:block"><Sidebar /></aside>
       <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
         <SheetContent side="left" className="w-72 p-0">

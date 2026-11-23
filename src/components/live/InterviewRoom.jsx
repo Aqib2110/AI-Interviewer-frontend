@@ -94,6 +94,7 @@ export function InterviewRoom({
   const micSourceRef = useRef(null);
   const silentGainRef = useRef(null);
   const audioSourcesRef = useRef([]);
+  const recordingSourcesRef = useRef([]);
   const nextPlayTimeRef = useRef(0);
 
   const recordingStreamRef = useRef(null);
@@ -111,9 +112,14 @@ export function InterviewRoom({
   const candidateSpeakingRef = useRef(false);
   const silenceFramesRef = useRef(0);
 
+  const pendingQuestionRef = useRef("");
+  const pendingMetaRef = useRef(null);
+  const questionMetaRef = useRef(null);
+  const recordingStartedAtRef = useRef(0);
+  const captionBufferRef = useRef("");
+  const captionTurnDoneRef = useRef(false);
   const questionRef = useRef("");
   const answerRef = useRef("");
-  const savingRef = useRef(false);
   const segmentRef = useRef("");
   const recorderRef = useRef(null);
   const recordingChunksRef = useRef([]);
@@ -153,15 +159,8 @@ export function InterviewRoom({
     setStream(mediaStream);
   }, []);
 
-  const saveExchange = async () => {
-    if (savingRef.current) return;
-
-    const question = questionRef.current.trim();
-    const answer = answerRef.current.trim();
-
-    if (!question || !answer) return;
-
-    savingRef.current = true;
+  const saveExchange = async (question, answer, meta) => {
+    if (!question) return;
 
     try {
       await interviewsService.saveExchange({
@@ -169,16 +168,14 @@ export function InterviewRoom({
         slug: id,
         aiMsg: question,
         userMsg: answer,
+        askedAt: meta?.askedAt ?? null,
+        askedAtMs: meta?.askedAtMs ?? null,
+        segmentId: meta?.segmentId ?? null,
         organizationId,
         isPublic,
       });
-
-      questionRef.current = "";
-      answerRef.current = "";
     } catch (err) {
       console.error("[Interview] Failed to save exchange:", err);
-    } finally {
-      savingRef.current = false;
     }
   };
 
@@ -446,6 +443,7 @@ export function InterviewRoom({
     };
 
     recorder.start(5000);
+    recordingStartedAtRef.current = Date.now();
     recordingStartedRef.current = true;
 
     recordingStream.getVideoTracks()[0].addEventListener(
@@ -637,6 +635,20 @@ export function InterviewRoom({
   }, [stage]);
 
   const stopQueuedAudio = useCallback(() => {
+    for (const recordingSource of recordingSourcesRef.current) {
+      recordingSource.onended = null;
+
+      try {
+        recordingSource.stop();
+      } catch { }
+
+      try {
+        recordingSource.disconnect();
+      } catch { }
+    }
+
+    recordingSourcesRef.current = [];
+
     const sources = [...audioSourcesRef.current];
 
     audioSourcesRef.current = [];
@@ -739,6 +751,19 @@ export function InterviewRoom({
     if (endingRef.current) return;
 
     endingRef.current = true;
+
+    const lastQuestion = pendingQuestionRef.current;
+    const lastMeta = pendingMetaRef.current;
+    const lastAnswer = answerRef.current.trim();
+
+    pendingQuestionRef.current = "";
+    pendingMetaRef.current = null;
+    questionRef.current = "";
+    answerRef.current = "";
+
+    if (lastQuestion) {
+      await saveExchange(lastQuestion, lastAnswer, lastMeta);
+    }
 
     try {
       if (recordingStartedRef.current || uploadIdRef.current) {
@@ -873,6 +898,13 @@ export function InterviewRoom({
     setAnswering(false);
     setAiSpeaking(false);
     setCaption("");
+    captionBufferRef.current = "";
+    captionTurnDoneRef.current = false;
+    pendingQuestionRef.current = "";
+    pendingMetaRef.current = null;
+    questionMetaRef.current = null;
+    questionRef.current = "";
+    answerRef.current = "";
     setElapsed(0);
 
     endingRef.current = false;
@@ -957,23 +989,6 @@ export function InterviewRoom({
       recordingAudioContextRef.current = recordingAudioContext;
       recordingDestinationRef.current = recordingDestination;
       recordingMicSourceRef.current = recordingMicSource;
-
-      if (useScreen) {
-        const screenAudioTracks = sharedScreenStream
-          .getAudioTracks()
-          .filter((track) => track.readyState === "live");
-
-        if (screenAudioTracks.length > 0) {
-          const screenAudioSource =
-            recordingAudioContext.createMediaStreamSource(
-              new MediaStream(screenAudioTracks)
-            );
-
-          screenAudioSource.connect(recordingDestination);
-
-          recordingScreenAudioSourceRef.current = screenAudioSource;
-        }
-      }
 
       const recordingVideoTracks = useScreen
         ? sharedScreenStream.getVideoTracks()
@@ -1065,21 +1080,34 @@ export function InterviewRoom({
             const inputText = content.inputTranscription?.text;
 
             if (inputText) {
-              if (!content.outputTranscription?.text) {
-                setCaption(inputText);
-              }
-
               answerRef.current += inputText;
             }
 
             const outputText = content.outputTranscription?.text;
 
             if (outputText) {
-              setCaption(outputText);
+              if (!questionMetaRef.current) {
+                const now = Date.now();
+
+                questionMetaRef.current = {
+                  askedAt: new Date(now).toISOString(),
+                  askedAtMs: Math.max(0, now - recordingStartedAtRef.current),
+                  segmentId: segmentRef.current || null,
+                };
+              }
+
+              if (captionTurnDoneRef.current) {
+                captionBufferRef.current = "";
+                captionTurnDoneRef.current = false;
+              }
+
+              captionBufferRef.current += outputText;
+              setCaption(captionBufferRef.current);
               questionRef.current += outputText;
             }
 
             if (content.interrupted) {
+              captionTurnDoneRef.current = true;
               stopQueuedAudio();
             }
 
@@ -1197,7 +1225,14 @@ export function InterviewRoom({
 
                   recordingSource.start(recordingStartTime);
 
+                  recordingSourcesRef.current.push(recordingSource);
+
                   recordingSource.onended = () => {
+                    recordingSourcesRef.current =
+                      recordingSourcesRef.current.filter(
+                        (item) => item !== recordingSource
+                      );
+
                     try {
                       recordingSource.disconnect();
                     } catch { }
@@ -1236,12 +1271,27 @@ export function InterviewRoom({
               }
             }
 
-            if (
-              content.turnComplete &&
-              questionRef.current.trim() &&
-              answerRef.current.trim()
-            ) {
-              await saveExchange();
+            if (content.turnComplete) {
+              captionTurnDoneRef.current = true;
+
+              const completedQuestion = questionRef.current.trim();
+              const answer = answerRef.current.trim();
+
+              questionRef.current = "";
+              answerRef.current = "";
+
+              if (completedQuestion) {
+                const previousQuestion = pendingQuestionRef.current;
+                const previousMeta = pendingMetaRef.current;
+
+                pendingQuestionRef.current = completedQuestion;
+                pendingMetaRef.current = questionMetaRef.current;
+                questionMetaRef.current = null;
+
+                if (previousQuestion) {
+                  await saveExchange(previousQuestion, answer, previousMeta);
+                }
+              }
             }
           },
 

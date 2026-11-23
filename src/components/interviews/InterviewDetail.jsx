@@ -112,6 +112,7 @@ const openVideo = (at = 0) => {
         }
         recording={data?.candidate}
         interview={data?.candidate?.interview}
+        messages={data?.candidate?.Message}
       />
 
       <ResumeModal

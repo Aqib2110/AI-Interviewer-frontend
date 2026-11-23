@@ -61,13 +61,8 @@ export function CandidateFeed({ name, className }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* helpers                                                             */
-/* ------------------------------------------------------------------ */
-
 const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 
-// Accepts a string, an array of strings, or an array of { url, duration }.
 function normalizeSegments(recording) {
   const raw =
     recording?.videoUrls ??
@@ -81,16 +76,16 @@ function normalizeSegments(recording) {
   return list
     .map((item) =>
       typeof item === "string"
-        ? { url: item, duration: 0 }
+        ? { url: item, duration: 0, segmentId: null }
         : {
             url: item?.url,
             duration: Number(item?.duration ?? item?.durationSec) || 0,
+            segmentId: item?.segmentId ?? null,
           }
     )
     .filter((s) => Boolean(s.url));
 }
 
-// Run fn after the video has actually painted a frame (fallback: timeout).
 function afterFrame(video, fn) {
   let done = false;
   const run = () => {
@@ -107,10 +102,6 @@ function afterFrame(video, fn) {
   }
 }
 
-/* ------------------------------------------------------------------ */
-/* VideoPlayer                                                         */
-/* ------------------------------------------------------------------ */
-
 export function VideoPlayer({
   recording,
   durationMinutes,
@@ -118,30 +109,27 @@ export function VideoPlayer({
   large = false,
   startAt = 0,
   onExpand,
+  playerRef,
   setduration=()=>{}
 }) {
 
-  /* ---------- segments (one per URL) ---------- */
 const [isFullscreen, setIsFullscreen] = useState(false);
 
   const rawSegments = normalizeSegments(recording);
   const segKey = JSON.stringify(rawSegments);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const segments = useMemo(() => rawSegments, [segKey]);
   const urls = segments.map((s) => s.url);
 
   const live = recording?.status === "recording";
 
-  /* ---------- state ---------- */
-
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
   const [speed, setSpeed] = useState(1);
-  const [time, setTime] = useState(startAt); // GLOBAL time across all segments
+  const [time, setTime] = useState(startAt);
   const [error, setError] = useState("");
 
-  const [active, setActive] = useState(0); // which <video> is visible (0 | 1)
-  const [slots, setSlots] = useState([0, segments.length > 1 ? 1 : -1]); // URL index loaded in each <video>
+  const [active, setActive] = useState(0);
+  const [slots, setSlots] = useState([0, segments.length > 1 ? 1 : -1]);
   const [durations, setDurations] = useState(() =>
     segments.map((s) => s.duration)
   );
@@ -158,8 +146,7 @@ const [isFullscreen, setIsFullscreen] = useState(false);
   const offsetsRef = useRef([]);
   const durationsRef = useRef(durations);
   const totalRef = useRef(0);
-
-  /* ---------- derived timeline ---------- */
+  const pendingSegSeekRef = useRef(null);
 
   const offsets = useMemo(() => {
     let acc = 0;
@@ -181,16 +168,9 @@ const [isFullscreen, setIsFullscreen] = useState(false);
   durationsRef.current = durations;
   totalRef.current = total;
 
-
   useEffect(()=>{
   setduration(total);
   },[total])
-  // const markers = Array.isArray(recording?.markers) ? recording.markers : [];
-  // const activeMarker = markers
-  //   .filter((item) => Number(item?.at) <= time)
-  //   .at(-1);
-
-  /* ---------- low-level helpers ---------- */
 
   const setDurationFor = (idx, value) => {
     if (idx < 0 || !Number.isFinite(value) || value <= 0) return;
@@ -227,9 +207,6 @@ const [isFullscreen, setIsFullscreen] = useState(false);
     return { idx, local: d > 0 ? Math.min(local, d) : local };
   };
 
-  /* ---------- the seamless swap ---------- */
-
-  // Make the hidden <video> the visible one.
   const commitSwap = (slot, idx) => {
     const prev = activeRef.current;
 
@@ -239,7 +216,7 @@ const [isFullscreen, setIsFullscreen] = useState(false);
     const nextIdx = idx + 1 < urlsRef.current.length ? idx + 1 : -1;
     const nextSlots = [...slotsRef.current];
     nextSlots[slot] = idx;
-    nextSlots[prev] = nextIdx; // old element now preloads the following URL
+    nextSlots[prev] = nextIdx;
     slotsRef.current = nextSlots;
 
     setActive(slot);
@@ -255,7 +232,6 @@ const [isFullscreen, setIsFullscreen] = useState(false);
     videoRefs.current[prev]?.pause();
   };
 
-  // Called from loadeddata / canplay / seeked of either element.
   const finishPending = () => {
     const p = pendingRef.current;
     if (!p || p.finishing) return;
@@ -263,7 +239,6 @@ const [isFullscreen, setIsFullscreen] = useState(false);
     const v = videoRefs.current[p.slot];
     if (!v || slotsRef.current[p.slot] !== p.idx || v.readyState < 2) return;
 
-    // Need to position the hidden element first?
     if (Math.abs(v.currentTime - p.local) > 0.05) {
       if (!p.seeking) {
         p.seeking = true;
@@ -274,7 +249,7 @@ const [isFullscreen, setIsFullscreen] = useState(false);
           setError("Unable to seek this recording.");
         }
       }
-      return; // onSeeked will call us again
+      return;
     }
 
     p.finishing = true;
@@ -283,7 +258,7 @@ const [isFullscreen, setIsFullscreen] = useState(false);
       v.play()
         .then(() =>
           afterFrame(v, () => {
-            if (pendingRef.current !== p) return; // superseded by a newer seek
+            if (pendingRef.current !== p) return;
             pendingRef.current = null;
             commitSwap(p.slot, p.idx);
           })
@@ -302,11 +277,9 @@ const [isFullscreen, setIsFullscreen] = useState(false);
     }
   };
 
-  // Load segment `idx` into the hidden element, then swap to it.
   const queueSwitch = (idx, local, autoplay) => {
     const slot = 1 - activeRef.current;
 
-    // cancel any earlier in-flight switch
     videoRefs.current[slot]?.pause();
     pendingRef.current = { slot, idx, local, autoplay, seeking: false };
 
@@ -314,13 +287,11 @@ const [isFullscreen, setIsFullscreen] = useState(false);
       const next = [...slotsRef.current];
       next[slot] = idx;
       slotsRef.current = next;
-      setSlots(next); // changes src -> loadeddata -> finishPending
+      setSlots(next);
     } else {
       finishPending();
     }
   };
-
-  /* ---------- public actions ---------- */
 
   const seekTo = (seconds, autoplay = playingRef.current) => {
     if (live || urlsRef.current.length === 0 || !Number.isFinite(seconds)) {
@@ -354,11 +325,39 @@ const [isFullscreen, setIsFullscreen] = useState(false);
     queueSwitch(idx, local, autoplay);
   };
 
+  const seekToSegment = ({ segmentId, fallbackIndex = 0, seconds = 0 }) => {
+    if (live || urlsRef.current.length === 0) return;
+
+    const byId = segmentId
+      ? segments.findIndex((s) => s.segmentId === segmentId)
+      : -1;
+
+    const idx = clamp(
+      byId >= 0 ? byId : fallbackIndex,
+      0,
+      urlsRef.current.length - 1
+    );
+
+    const known =
+      durationsRef.current.length > 0 &&
+      durationsRef.current.every((d) => d > 0);
+
+    if (!known) {
+      pendingSegSeekRef.current = { idx, seconds };
+      return;
+    }
+
+    seekTo((offsetsRef.current[idx] || 0) + seconds, true);
+  };
+
+  if (playerRef) {
+    playerRef.current = { seekTo, seekToSegment };
+  }
+
   const togglePlayback = async () => {
     const video = videoRefs.current[activeRef.current];
     if (!video || live || urlsRef.current.length === 0) return;
 
-    // user pressed pause while a handoff is in flight
     if (pendingRef.current?.autoplay) {
       pendingRef.current.autoplay = false;
       setPlaying(false);
@@ -367,7 +366,6 @@ const [isFullscreen, setIsFullscreen] = useState(false);
     }
 
     if (video.paused) {
-      // finished everything -> restart from the beginning
       if (totalRef.current > 0 && time >= totalRef.current - 0.25) {
         seekTo(0, true);
         return;
@@ -388,7 +386,6 @@ const [isFullscreen, setIsFullscreen] = useState(false);
     }
   };
 
-  // Real browser fullscreen on the whole player (keeps custom controls)
   const toggleFullscreen = async () => {
     const el = containerRef.current;
     if (!el) return;
@@ -404,15 +401,12 @@ const [isFullscreen, setIsFullscreen] = useState(false);
     }
   };
 
-  /* ---------- <video> event handlers ---------- */
-
   const handleEnded = (slot) => {
     if (slot !== activeRef.current) return;
 
     const next = segRef.current + 1;
 
     if (next < urlsRef.current.length) {
-      // keep `playing` true -> no UI flicker, hidden element takes over
       queueSwitch(next, 0, true);
     } else {
       setPlaying(false);
@@ -436,8 +430,6 @@ const [isFullscreen, setIsFullscreen] = useState(false);
   const handlePause = (slot, event) => {
     if (slot !== activeRef.current) return;
 
-    // the browser fires `pause` right before `ended` – ignore it when
-    // another segment is about to take over
     if (
       event.currentTarget.ended &&
       segRef.current + 1 < urlsRef.current.length
@@ -461,14 +453,12 @@ const [isFullscreen, setIsFullscreen] = useState(false);
     }
   };
 
-  /* ---------- effects ---------- */
-
-  // New recording / new URLs -> reset everything
   useEffect(() => {
     const initialSlots = [0, segments.length > 1 ? 1 : -1];
     const start = Math.max(0, startAt || 0);
 
     pendingRef.current = null;
+    pendingSegSeekRef.current = null;
     activeRef.current = 0;
     segRef.current = 0;
     slotsRef.current = initialSlots;
@@ -483,9 +473,8 @@ const [isFullscreen, setIsFullscreen] = useState(false);
     setTime(start);
 
     videoRefs.current.forEach((v) => v && v.pause());
-  }, [segments]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [segments]);
 
-  // Read each segment's duration up-front (so the timeline is complete)
   useEffect(() => {
     if (live) return undefined;
 
@@ -507,7 +496,6 @@ const [isFullscreen, setIsFullscreen] = useState(false);
         if (Number.isFinite(probe.duration)) {
           finish(probe.duration);
         } else {
-          // MediaRecorder/webm files report Infinity until you seek to the end
           probe.ontimeupdate = () => {
             probe.ontimeupdate = null;
             finish(probe.duration);
@@ -529,18 +517,22 @@ const [isFullscreen, setIsFullscreen] = useState(false);
         p.load();
       });
     };
-  }, [segments, live]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [segments, live]);
 
-  // Apply `startAt` once we know where each segment starts
   useEffect(() => {
     if (startRef.current > 0 && allKnown) {
       const t = startRef.current;
       startRef.current = 0;
       seekTo(t, false);
     }
-  }, [allKnown, offsets]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Speed (also as default, because changing `src` resets playbackRate)
+    if (pendingSegSeekRef.current && allKnown) {
+      const pending = pendingSegSeekRef.current;
+      pendingSegSeekRef.current = null;
+      seekTo((offsetsRef.current[pending.idx] || 0) + pending.seconds, true);
+    }
+  }, [allKnown, offsets]);
+
   useEffect(() => {
     videoRefs.current.forEach((v) => {
       if (!v) return;
@@ -555,7 +547,6 @@ const [isFullscreen, setIsFullscreen] = useState(false);
     });
   }, [muted, slots]);
 
-  // Track fullscreen state (also catches the Esc key)
   useEffect(() => {
     const onChange = () =>
       setIsFullscreen(document.fullscreenElement === containerRef.current);
@@ -563,8 +554,6 @@ const [isFullscreen, setIsFullscreen] = useState(false);
     document.addEventListener("fullscreenchange", onChange);
     return () => document.removeEventListener("fullscreenchange", onChange);
   }, []);
-
-  /* ---------- render ---------- */
 
   const hasVideo = urls.length > 0;
   const controlsDisabled = live || !hasVideo;
@@ -580,7 +569,6 @@ const [isFullscreen, setIsFullscreen] = useState(false);
       )}
       data-testid={large ? "video-player-large" : "video-player-inline"}
     >
-      {/* Video */}
       <div
         className={cn(
           "relative bg-slate-950",
@@ -591,7 +579,6 @@ const [isFullscreen, setIsFullscreen] = useState(false);
         data-testid="video-stage"
       >
         {hasVideo ? (
-          // Two stacked elements: one visible, one preloading the next URL.
           [0, 1].map((slot) => {
             const idx = slots[slot];
             const src = idx >= 0 ? urls[idx] : undefined;
@@ -641,7 +628,6 @@ const [isFullscreen, setIsFullscreen] = useState(false);
           </div>
         )}
 
-        {/* Video labels */}
         <div className="pointer-events-none absolute left-3 top-3 z-10 flex flex-wrap items-center gap-2">
           {live ? (
             <span className="inline-flex items-center gap-1.5 rounded bg-rose-600 px-2 py-0.5 font-mono text-[10px] font-medium text-white">
@@ -658,12 +644,6 @@ const [isFullscreen, setIsFullscreen] = useState(false);
             {candidateName || "Candidate"}
           </span>
         </div>
-
-        {/* {activeMarker && (
-          <span className="pointer-events-none absolute bottom-3 left-3 z-10 rounded bg-black/60 px-2 py-1 text-[11px] text-white">
-            {activeMarker.label || "Chapter"}
-          </span>
-        )} */}
 
         {!playing && !live && hasVideo && (
           <button
@@ -691,7 +671,6 @@ const [isFullscreen, setIsFullscreen] = useState(false);
       {error && <p className="px-4 pt-3 text-sm text-rose-400">{error}</p>}
 
       <div className="space-y-2.5 px-4 pb-3 pt-3">
-        {/* Timeline (combined across all URLs) */}
         <div className="relative px-1 py-2" data-testid="video-timeline">
           <input
             type="range"
@@ -705,30 +684,8 @@ const [isFullscreen, setIsFullscreen] = useState(false);
             className="block w-full cursor-pointer accent-blue-500 disabled:cursor-not-allowed"
           />
 
-          {/* {markers.map((item, index) => {
-            const position =
-              total > 0 ? clamp((Number(item.at) / total) * 100, 0, 100) : 0;
-
-            return (
-              <button
-                key={item.at ?? index}
-                type="button"
-                title={item.label || "Chapter"}
-                aria-label={`Seek to ${item.label || "chapter"}`}
-                disabled={seekDisabled}
-                onPointerDown={(event) => event.stopPropagation()}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  seekTo(Number(item.at) || 0);
-                }}
-                className="absolute top-1/2 z-30 h-3 w-2 -translate-x-1/2 -translate-y-1/2 rounded-sm bg-slate-400 hover:bg-white disabled:cursor-not-allowed"
-                style={{ left: `${position}%` }}
-              />
-            );
-          })} */}
         </div>
 
-        {/* Controls */}
         <div className="flex items-center gap-1 text-slate-300">
           <Ctl
             onClick={() => void togglePlayback()}
@@ -786,7 +743,6 @@ const [isFullscreen, setIsFullscreen] = useState(false);
             >
               {speed}x
             </button>
-
 
             <Ctl
               onClick={() => void toggleFullscreen()}

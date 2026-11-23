@@ -35,7 +35,7 @@ export function StatCard({ label, value, suffix, hint, icon: Icon, index = 0, te
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05, duration: 0.3 }}
-      className="rounded-xl border border-slate-200 bg-white p-5" data-testid={testId}
+      className="rounded-xl overflow-hidden border border-slate-200 bg-white p-5" data-testid={testId}
     >
       <div className="flex items-center justify-between">
         <p className="text-[13px] font-medium text-slate-500">{label}</p>

@@ -57,7 +57,7 @@ const pendInterviews = data?.interviews?.filter(
 
             <StatCard index={1} label="Completed" value={complInterviews} hint="Reports generatedssss" icon={CheckCircle2} testId="stat-completed" />
             <StatCard index={2} label="Pending" value={pendInterviews} hint="Invited or in progress" icon={Hourglass} testId="stat-pending" />
-            <StatCard index={3} label="Avg. candidate score" value={data?.stats?.avgScore} suffix="/100" hint="Across completed interviews" icon={Gauge} testId="stat-average-score" />
+            <StatCard index={3} label="Avg. candidate score" value={Number(data?.stats?.avgScore ?? 0).toFixed(2)} suffix="/100" hint="Across completed interviews" icon={Gauge} testId="stat-average-score" />
             <StatCard index={4} label="Candidates" value={candidates?.length} hint="In active pipelines" icon={Users} testId="stat-candidates" />
           </div>
           {/* <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
@@ -188,7 +188,7 @@ function IndividualOverview() {
             <StatCard
               index={3}
               label="Average score"
-              value={data.stats?.avgScore ?? "—"}
+              value={Number(data?.stats?.avgScore ?? 0).toFixed(2)}
               suffix={data.stats?.avgScore != null ? "/100" : ""}
               icon={Gauge}
               testId="stat-average-score"
