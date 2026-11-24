@@ -56,7 +56,7 @@ function afterFrame(video, fn) {
   }
 }
 
-function CaptionOverlay({ messages, time }) {
+function CaptionOverlay({ messages, time, isFullscreen = false }) {
   const questions = useMemo(
     () =>
       (Array.isArray(messages) ? messages : [])
@@ -77,17 +77,27 @@ function CaptionOverlay({ messages, time }) {
 
   if (!current) return null;
 
-  return (
-    <div className="pointer-events-none absolute inset-x-3 bottom-10 z-10 flex justify-center">
-      <p
-        key={current.id ?? current.startSec}
-        className="max-w-[90%] rounded-md bg-black/70 px-3 py-2 text-center text-sm leading-snug text-white"
-        data-testid="video-caption"
-      >
-        {current.aiMsg}
-      </p>
-    </div>
-  );
+ return (
+  <div
+    className={cn(
+      "pointer-events-none absolute z-10 flex justify-center",
+      isFullscreen ? "inset-x-3 bottom-10" : "inset-x-2 bottom-2 sm:bottom-3"
+    )}
+  >
+    <p
+      key={current.id ?? current.startSec}
+      className={cn(
+        "rounded-md bg-black/70 text-center leading-snug text-white",
+        isFullscreen
+          ? "max-w-[90%] px-3 py-2 text-sm"
+          : "line-clamp-2 max-w-full px-2 py-1 text-xs sm:max-w-[90%] sm:px-3 sm:py-2 sm:text-sm"
+      )}
+      data-testid="video-caption"
+    >
+      {current.aiMsg}
+    </p>
+  </div>
+);
 }
 
 export function VideoPlayer({
@@ -636,9 +646,9 @@ export function VideoPlayer({
           </span>
         </div>
 
-        {showCaptions && hasVideo && (
-          <CaptionOverlay messages={messages} time={time} />
-        )}
+       {showCaptions && hasVideo && (
+  <CaptionOverlay messages={messages} time={time} isFullscreen={isFullscreen} />
+)}
 
         {!playing && !live && hasVideo && (
           <button
@@ -779,6 +789,9 @@ export const CameraOnlyPlayer = (props) => (
 );
 
 export function InterviewPlayer(props) {
+  console.log(props?.recordingMode,"mode")
+  console.log(props?.messages,"messages")
+
   return props.recordingMode === "camera_only" ? (
     <CameraOnlyPlayer {...props} />
   ) : (

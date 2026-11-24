@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef } from "react";
-import { VideoPlayer } from "./VideoPlayer";
+import { InterviewPlayer } from "./VideoPlayer";
 
 export function formatOffset(ms) {
   const total = Math.max(0, Math.floor((ms ?? 0) / 1000));
@@ -56,17 +56,17 @@ export function VideoModal({ recording, interview, startAt = 0, messages }) {
       seconds: message.askedAtMs / 1000,
     });
   };
-console.log(interview,"interviewplayer")
+console.log(interview.Message,"interviewplayer")
   return (
     <div className="space-y-4">
-      <VideoPlayer
+      <InterviewPlayer
         playerRef={playerRef}
         recording={{
           videoUrls: recording.videoUrls,
           status: recording.status,
         }}
         candidateName={interview?.candidate?.name}
-        recordingMode={interview?.InterviewSegment}
+        recordingMode={interview?.InterviewSegment?.[0]?.recordingMode}
         messages={interview?.Message}
         large
         startAt={startAt}

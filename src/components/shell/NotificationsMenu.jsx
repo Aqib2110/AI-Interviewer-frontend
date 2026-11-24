@@ -17,6 +17,7 @@ import { notificationsService } from "@/services";
 import { useAsync } from "@/hooks/useAsync";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { useSession } from "@/context/SessionContext";
 
 const NOTIFICATION_CONFIG = {
   ROLE_UPDATE: {
@@ -41,15 +42,14 @@ const NOTIFICATION_CONFIG = {
 
 
 export function NotificationsMenu() {
-  const navigate = useNavigate();
-
+  const {context} = useSession();
   const {
     data,
     loading,
     error,
     reload,
   } = useAsync(
-    () => notificationsService.list(),
+    () => notificationsService.list(context),
     []
   );
 

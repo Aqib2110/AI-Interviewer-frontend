@@ -31,11 +31,18 @@ export const resumesService = {
 };
 
 export const notificationsService = {
-  list() 
+  list(context) 
   {
+     if(context == "individual")
+     {
     return tenantRequest("/api/v1/user/notifications",{
       method:"GET"
     })
+     }
+      return tenantRequest("/api/v1/organization/notifications",{
+      method:"GET"
+    })
+   
   },
   markAllRead(notificationIds) {
     return tenantRequest("/api/v1/user/notification",{

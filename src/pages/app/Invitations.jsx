@@ -760,7 +760,6 @@ export function InvitationsListPage() {
   } = usePendingInvitations();
 
 
-  // const invitations = getInvitations(data);
 
   const handleAccept = async (invitation) => {
     if (!isAuthenticated || !invitation?.id || acceptingId) return;
