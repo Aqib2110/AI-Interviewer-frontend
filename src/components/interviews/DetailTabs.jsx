@@ -259,6 +259,7 @@ export function OverviewTab({
   const candidateName = getCandidateName(detail);
   const recording = detail?.recording || null;
   const resume = getResume(detail);
+  console.log(resume,"resumen,,,,,,,,,,,,,,,");
   const skills = getSkills(detail);
   console.log(skills,"skills");
 
@@ -364,47 +365,7 @@ export function OverviewTab({
               )}
             </Panel>
 
-            {recording?.url && (
-              <Panel title="Recording" bodyClassName="p-3">
-                <VideoPlayer
-                  recording={recording}
-                  candidateName={candidateName}
-                  onExpand={onOpenVideo}
-                />
-              </Panel>
-            )}
-
-            {resume && (
-              <Panel
-                title="Resume"
-                description={
-                  resume?.fileName ||
-                  resume?.originalName ||
-                  "Candidate resume"
-                }
-                actions={
-                  <button
-                    onClick={onOpenResume}
-                    className="text-xs font-medium text-blue-600 hover:underline"
-                  >
-                    View
-                  </button>
-                }
-                bodyClassName="p-0"
-              >
-                <button
-                  onClick={onOpenResume}
-                  className="relative block h-48 w-full overflow-hidden bg-slate-100 px-6 pt-5 text-left"
-                >
-                  <ResumeDocument
-                    resume={resume}
-                    name={candidateName}
-                    className="origin-top scale-[0.62] px-6 py-6"
-                  />
-                  <span className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-slate-100" />
-                </button>
-              </Panel>
-            )}
+           
           </div>
         </div>
       )}

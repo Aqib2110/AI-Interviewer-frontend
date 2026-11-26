@@ -36,6 +36,100 @@ const SUGGESTED = [
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+const INTERVIEW_TYPES = [
+  {
+    value: "TECHNICAL",
+    label: "Technical",
+    description:
+      "Scenario-based questions on each skill: debugging, trade-offs and real depth.",
+    usesSkills: true,
+  },
+  {
+    value: "PROJECT_BASED",
+    label: "Project based",
+    description:
+      "Deep dive into the candidate's real projects: ownership, decisions and results.",
+    usesSkills: true,
+  },
+  {
+    value: "BEHAVIORAL",
+    label: "Behavioral",
+    description:
+      "Real past experiences on teamwork, conflict and accountability. No skills quiz.",
+    usesSkills: false,
+  },
+  {
+    value: "HR",
+    label: "HR",
+    description:
+      "Motivation, career goals, work style and culture fit. No technical questions.",
+    usesSkills: false,
+  },
+  {
+    value: "MIXED",
+    label: "Mixed",
+    description:
+      "Technical, project deep dive and behavioral questions in one interview.",
+    usesSkills: true,
+  },
+];
+
+const EXPERIENCE_LEVELS = [
+  {
+    value: "ENTRY_LEVEL",
+    label: "Entry level",
+    description: "Fresher to 1 year. Fundamentals and learning ability.",
+  },
+  {
+    value: "JUNIOR",
+    label: "Junior",
+    description: "1 to 3 years. Everyday tasks, debugging and code quality.",
+  },
+  {
+    value: "MID_LEVEL",
+    label: "Mid level",
+    description: "3 to 6 years. Ownership, trade-offs and production issues.",
+  },
+  {
+    value: "SENIOR",
+    label: "Senior",
+    description: "6+ years. Architecture, scale, leadership and impact.",
+  },
+];
+
+const MAX_WEIGHT = 50;
+const WEIGHT_STEP = 5;
+
+const DEFAULT_CRITERIA = [
+  {
+    name: "Technical Skills",
+    weight: 35,
+    description: "Evaluate technical knowledge and required skills.",
+  },
+  {
+    name: "Relevant Projects",
+    weight: 25,
+    description: "Evaluate project experience and individual contributions.",
+  },
+  {
+    name: "Problem Solving",
+    weight: 15,
+    description: "Evaluate analytical thinking and problem-solving.",
+  },
+  {
+    name: "Communication",
+    weight: 10,
+    description: "Evaluate clarity and relevance of responses.",
+  },
+  {
+    name: "Motivation & Role Fit",
+    weight: 15,
+    description: "Evaluate interest and suitability for the role.",
+  },
+];
+
+const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+
 function SkillsInput({ value, onChange, error }) {
   const [draft, setDraft] = useState("");
   const add = (s) => {
@@ -53,7 +147,7 @@ function SkillsInput({ value, onChange, error }) {
           <span
             key={s}
             className="inline-flex items-center gap-1 rounded-md bg-slate-900 py-1 pl-2 pr-1 text-xs font-medium text-white"
-            data-testid={`skill-chip-${s.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+            data-testid={`skill-chip-${slug(s)}`}
           >
             {s}
             <button
@@ -93,7 +187,7 @@ function SkillsInput({ value, onChange, error }) {
               key={s}
               onClick={() => add(s)}
               className="rounded-md border border-dashed border-slate-300 px-2 py-0.5 text-xs text-slate-600 hover:border-slate-400 hover:bg-white"
-              data-testid={`skill-suggestion-${s.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+              data-testid={`skill-suggestion-${slug(s)}`}
             >
               + {s}
             </button>
@@ -117,8 +211,127 @@ const Field = ({ label, error, hint, children, htmlFor }) => (
   </div>
 );
 
+function RadioCards({
+  name,
+  value,
+  onChange,
+  options,
+  ariaLabel,
+  testIdPrefix,
+}) {
+  return (
+    <div
+      role="radiogroup"
+      aria-label={ariaLabel}
+      className="grid gap-2.5 sm:grid-cols-2"
+    >
+      {options.map((o) => {
+        const selected = value === o.value;
+        return (
+          <label key={o.value} className="block cursor-pointer">
+            <input
+              type="radio"
+              name={name}
+              value={o.value}
+              checked={selected}
+              onChange={() => onChange(o.value)}
+              className="peer sr-only"
+              data-testid={`${testIdPrefix}-${slug(o.value)}`}
+            />
+            <div className="h-full rounded-lg border border-slate-200 bg-white p-3.5 transition-colors hover:border-slate-300 peer-checked:border-slate-900 peer-checked:bg-slate-50 peer-checked:ring-1 peer-checked:ring-slate-900 peer-focus-visible:ring-2 peer-focus-visible:ring-blue-600/40">
+              <div className="flex items-center gap-2">
+                <span
+                  className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${selected ? "border-slate-900" : "border-slate-300"}`}
+                >
+                  {selected && (
+                    <span className="h-2 w-2 rounded-full bg-slate-900" />
+                  )}
+                </span>
+                <span className="text-[13px] font-medium text-slate-900">
+                  {o.label}
+                </span>
+              </div>
+              <p className="mt-1.5 pl-6 text-xs leading-relaxed text-slate-500">
+                {o.description}
+              </p>
+            </div>
+          </label>
+        );
+      })}
+    </div>
+  );
+}
+
+function CriteriaWeights({ value, onChange, error }) {
+  const total = value.reduce((sum, c) => sum + c.weight, 0);
+  const update = (index, weight) =>
+    onChange(value.map((c, i) => (i === index ? { ...c, weight } : c)));
+
+  return (
+    <div data-testid="criteria-weights">
+      <div className="divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white">
+        {value.map((c, i) => (
+          <div
+            key={c.name}
+            className="space-y-2.5 p-3.5"
+            data-testid={`criterion-${slug(c.name)}`}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[13px] font-medium text-slate-900">
+                  {c.name}
+                </p>
+                <p className="text-xs text-slate-500">{c.description}</p>
+              </div>
+              <span className="shrink-0 rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-900">
+                {c.weight}%
+              </span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={MAX_WEIGHT}
+              step={WEIGHT_STEP}
+              value={c.weight}
+              onChange={(e) => update(i, Number(e.target.value))}
+              className="w-full cursor-pointer accent-black"
+              aria-label={`${c.name} weight`}
+              aria-valuetext={`${c.weight}%`}
+              data-testid={`criterion-${slug(c.name)}-weight-slider`}
+            />
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <p className={`text-xs ${error ? "text-rose-600" : "text-slate-500"}`}>
+          {error || "Choose a weight for each criterion. They must add up to 100%."}
+        </p>
+        <span
+          className={`shrink-0 rounded-md px-3 py-1 text-sm font-semibold ${total === 100 ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}
+          data-testid="criteria-total"
+        >
+          Total {total}%
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function Preview({ form }) {
-  const questions = form.skills.slice(0, 4);
+  const type = INTERVIEW_TYPES.find((t) => t.value === form.interviewType);
+  const level = EXPERIENCE_LEVELS.find((l) => l.value === form.experienceLevel);
+  const usesSkills = type?.usesSkills ?? true;
+
+  const planItems = usesSkills
+    ? form.skills.slice(0, 4).map((s) => ({
+        title: s,
+        text: `Scenario and follow-up questions to gather evidence on ${s.toLowerCase()} depth.`,
+      }))
+    : form.criteria
+        .filter((c) => c.weight > 0)
+        .slice(0, 4)
+        .map((c) => ({ title: c.name, text: c.description }));
+
   return (
     <div className="sticky top-24 space-y-4" data-testid="interview-preview">
       <div className="overflow-hidden rounded-xl border border-slate-800 bg-[#0B0F17] text-white">
@@ -133,6 +346,14 @@ function Preview({ form }) {
             <Building2 className="h-3.5 w-3.5" />
             {form.company || "Company"} · {form.role || "Role"}
           </p>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            <span className="rounded-md bg-white/10 px-2 py-0.5 text-xs text-slate-200">
+              {type?.label}
+            </span>
+            <span className="rounded-md bg-white/10 px-2 py-0.5 text-xs text-slate-200">
+              {level?.label}
+            </span>
+          </div>
         </div>
         <div className="space-y-3 px-5 py-4 text-sm">
           <p className="flex items-center gap-2 text-slate-300">
@@ -141,7 +362,7 @@ function Preview({ form }) {
           </p>
           <p className="flex items-center gap-2 text-slate-300">
             <Clock className="h-3.5 w-3.5 text-slate-500" />~
-            {Math.max(20, form.skills.length * 7)} minutes · camera & microphone
+            {form.durationMinutes} {form.durationMinutes === 1 ? "minute" : "minutes"} · camera & microphone
           </p>
           <p className="line-clamp-3 text-slate-400">
             {form.description ||
@@ -153,39 +374,39 @@ function Preview({ form }) {
         title="What the AI interviewer will cover"
         bodyClassName="space-y-2.5"
       >
-        {questions.length === 0 && (
+        {planItems.length === 0 && (
           <p className="text-sm text-slate-500">
-            Add required skills to see the interview plan.
+            {usesSkills
+              ? "Add required skills to see the interview plan."
+              : "Give at least one criterion a weight to see the interview plan."}
           </p>
         )}
-        {questions.map((s, i) => (
+        {planItems.map((item, i) => (
           <div
-            key={s}
+            key={item.title}
             className="flex gap-3 rounded-lg border border-slate-100 bg-slate-50/60 p-3"
           >
             <Bot className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />
             <div>
               <p className="text-xs font-semibold text-slate-900">
-                Block {i + 1} · {s}
+                Block {i + 1} · {item.title}
               </p>
-              <p className="mt-0.5 text-xs text-slate-500">
-                Scenario and follow-up questions to gather evidence on{" "}
-                {s.toLowerCase()} depth.
-              </p>
+              <p className="mt-0.5 text-xs text-slate-500">{item.text}</p>
             </div>
           </div>
         ))}
-        {form.skills.length > 0 && (
+        {planItems.length > 0 && (
           <p className="flex items-center gap-1.5 pt-1 text-xs text-slate-500">
             <Sparkles className="h-3 w-3 text-blue-600" />
-            Each skill receives its own 0–100 score in the report.
+            {usesSkills
+              ? "Each skill receives its own 0–100 score in the report."
+              : "Scores are weighted by your evaluation criteria."}
           </p>
         )}
       </Panel>
     </div>
   );
 }
-
 
 export default function NewInterviewPage() {
   const { context, user, orgId, orgName } = useSession();
@@ -197,20 +418,32 @@ export default function NewInterviewPage() {
     role: "",
     company: orgName || "",
     description: "",
+    interviewType: "MIXED",
+    experienceLevel: "MID_LEVEL",
     skills: ["Node.js", "PostgreSQL"],
+    criteria: DEFAULT_CRITERIA,
     candidateEmail: orgId ? "" : user.email,
     candidateName: "",
     durationMinutes: 8,
   });
-   const [created, setcreated] = useState(null);
+  const [created, setCreated] = useState(null);
   const [errors, setErrors] = useState({});
   const [status, setStatus] = useState("idle");
+
+  const usesSkills =
+    INTERVIEW_TYPES.find((t) => t.value === form.interviewType)?.usesSkills ??
+    true;
 
   const set = (k) => (e) =>
     setForm((f) => ({
       ...f,
       [k]: e?.target ? e.target.value : e,
     }));
+
+  const changeType = (next) => {
+    setForm((f) => ({ ...f, interviewType: next }));
+    setErrors((e) => ({ ...e, skills: undefined, criteria: undefined }));
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -229,8 +462,13 @@ export default function NewInterviewPage() {
       err.company = "Company name is required.";
     }
 
-    if (form.skills.length < 2) {
+    if (usesSkills && form.skills.length < 2) {
       err.skills = "Add at least two skills to evaluate.";
+    }
+
+    const totalWeight = form.criteria.reduce((sum, c) => sum + c.weight, 0);
+    if (totalWeight !== 100) {
+      err.criteria = `Weights must add up to 100% (currently ${totalWeight}%).`;
     }
 
     if (!EMAIL.test(form.candidateEmail)) {
@@ -252,9 +490,17 @@ export default function NewInterviewPage() {
     try {
       setStatus("loading");
 
-  const  iv =  await interviewsService.create(
+      const iv = await interviewsService.create(
         {
           ...form,
+          skills: usesSkills ? form.skills : [],
+          criteria: form.criteria
+            .filter((c) => c.weight > 0)
+            .map(({ name, weight, description }) => ({
+              name,
+              weight,
+              description,
+            })),
           durationMinutes: Math.min(
             8,
             Math.max(1, Number(form.durationMinutes))
@@ -262,7 +508,7 @@ export default function NewInterviewPage() {
         },
         context
       );
-       setcreated(iv?.interview);
+      setCreated(iv?.interview);
       setStatus("success");
 
       toast.success("Interview created", {
@@ -307,8 +553,6 @@ export default function NewInterviewPage() {
             onClick={() => navigate(`/app/interviews/${created?.slug}`)}
             data-testid="view-new-interview-button"
           >
-
-
             View interview
           </Button>
         </SuccessState>
@@ -321,7 +565,7 @@ export default function NewInterviewPage() {
       <PageHeader
         eyebrow={orgName || "Personal"}
         title="New interview"
-        description="Define the role and required skills. The AI interviewer structures every question around them."
+        description="Define the role, interview style and evaluation criteria. The AI interviewer structures every question around them."
       />
 
       <form
@@ -394,16 +638,57 @@ export default function NewInterviewPage() {
           </Panel>
 
           <Panel
-            title="Required skills"
-            description="Each skill is evaluated and scored individually"
+            title="Interview type"
+            description="Choose how the AI interviewer should run the conversation"
           >
-            <Field label="Skills" error={errors.skills}>
-              <SkillsInput
-                value={form.skills}
-                onChange={set("skills")}
-                error={errors.skills}
-              />
-            </Field>
+            <RadioCards
+              name="interviewType"
+              ariaLabel="Interview type"
+              value={form.interviewType}
+              onChange={changeType}
+              options={INTERVIEW_TYPES}
+              testIdPrefix="interview-type"
+            />
+          </Panel>
+
+          <Panel
+            title="Experience level"
+            description="Sets the difficulty and the kind of questions the AI asks"
+          >
+            <RadioCards
+              name="experienceLevel"
+              ariaLabel="Experience level"
+              value={form.experienceLevel}
+              onChange={set("experienceLevel")}
+              options={EXPERIENCE_LEVELS}
+              testIdPrefix="experience-level"
+            />
+          </Panel>
+
+          {usesSkills && (
+            <Panel
+              title="Required skills"
+              description="Each skill is evaluated and scored individually"
+            >
+              <Field label="Skills" error={errors.skills}>
+                <SkillsInput
+                  value={form.skills}
+                  onChange={set("skills")}
+                  error={errors.skills}
+                />
+              </Field>
+            </Panel>
+          )}
+
+          <Panel
+            title="Evaluation criteria"
+            description="Select how much each criterion counts toward the final result"
+          >
+            <CriteriaWeights
+              value={form.criteria}
+              onChange={set("criteria")}
+              error={errors.criteria}
+            />
           </Panel>
 
           <Panel
@@ -443,7 +728,6 @@ export default function NewInterviewPage() {
                 data-testid="interview-duration-slider"
               />
 
-
               {errors.durationMinutes && (
                 <p className="text-sm text-red-600">
                   {errors.durationMinutes}
@@ -478,10 +762,7 @@ export default function NewInterviewPage() {
                 />
               </Field>
 
-              <Field
-                label="Candidate name (optional)"
-                htmlFor="cname"
-              >
+              <Field label="Candidate name (optional)" htmlFor="cname">
                 <Input
                   id="cname"
                   value={form.candidateName}
@@ -508,8 +789,10 @@ export default function NewInterviewPage() {
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Creating…
                 </>
+              ) : isOrg ? (
+                "Create & send interview"
               ) : (
-                `Create ${isOrg ? "& send" : ""} interview`
+                "Create interview"
               )}
             </Button>
           </div>
@@ -520,4 +803,3 @@ export default function NewInterviewPage() {
     </>
   );
 }
-

@@ -11,8 +11,12 @@ const initialForm = {
   currRole: "",
 };
 
-export function CandidateInfoForm({ isDone,id,tenantId }) {
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
+
+export function CandidateInfoForm({ isDone, id, tenantId }) {
   const [form, setForm] = useState(initialForm);
+  const [resume, setResume] = useState(null);
+  const [resumeError, setResumeError] = useState("");
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [apiError, setApiError] = useState("");
@@ -25,18 +29,46 @@ export function CandidateInfoForm({ isDone,id,tenantId }) {
     setApiError("");
   };
 
+  const handleResumeChange = (e) => {
+    const file = e.target.files?.[0];
+
+    setResumeError("");
+    setResume(null);
+
+    if (!file) return;
+
+    const allowedTypes = [
+      "application/pdf",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      setResumeError("Only PDF and DOCX files are allowed.");
+      e.target.value = "";
+      return;
+    }
+
+   if (file.size > MAX_FILE_SIZE) {
+  setResumeError("Resume must be smaller than 5 MB.");
+  e.target.value = "";
+  return;
+}
+
+    if (file.size === 0) {
+      setResumeError("The selected file is empty.");
+      e.target.value = "";
+      return;
+    }
+
+    setResume(file);
+  };
+
   const validate = () => {
     const nextErrors = {};
 
     if (!form.name.trim()) {
       nextErrors.name = "Name is required";
     }
-
-    // if (!form.email.trim()) {
-    //   nextErrors.email = "Email is required";
-    // } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
-    //   nextErrors.email = "Enter a valid email";
-    // }
 
     if (!form.experience.trim()) {
       nextErrors.experience = "Experience is required";
@@ -59,16 +91,19 @@ export function CandidateInfoForm({ isDone,id,tenantId }) {
     setApiError("");
 
     try {
-      const payload = {
-        ...form,
-        name: form.name.trim(),
-        location: form.location.trim(),
-        experience: form.experience.trim(),
-        phone: form.phone.trim(),
-        currRole: form.currRole.trim(),
-      };
+      const payload = new FormData();
 
-      await candidatesService.createCandidate(payload,id,tenantId);
+      payload.append("name", form.name.trim());
+      payload.append("location", form.location.trim());
+      payload.append("experience", form.experience.trim());
+      payload.append("phone", form.phone.trim());
+      payload.append("currRole", form.currRole.trim());
+
+     if (resume) {
+  payload.append("file", resume);
+}
+
+      await candidatesService.createCandidate(payload, id, tenantId);
 
       isDone(true);
     } catch (error) {
@@ -117,6 +152,7 @@ export function CandidateInfoForm({ isDone,id,tenantId }) {
   return (
     <form
       onSubmit={handleSubmit}
+      encType="multipart/form-data"
       className="mx-auto w-full max-w-xl space-y-5 rounded-2xl border bg-white p-6 shadow-sm sm:p-8"
     >
       <div>
@@ -132,9 +168,7 @@ export function CandidateInfoForm({ isDone,id,tenantId }) {
         {fields.map((field) => (
           <div
             key={field.name}
-            className={
-              field.name === "experience" ? "sm:col-span-2" : ""
-            }
+            className={field.name === "experience" ? "sm:col-span-2" : ""}
           >
             <label
               htmlFor={field.name}
@@ -157,9 +191,7 @@ export function CandidateInfoForm({ isDone,id,tenantId }) {
               disabled={loading}
               aria-invalid={Boolean(errors[field.name])}
               className={`w-full rounded-lg border px-3 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-blue-500 disabled:opacity-60 ${
-                errors[field.name]
-                  ? "border-red-500"
-                  : "border-slate-300"
+                errors[field.name] ? "border-red-500" : "border-slate-300"
               }`}
             />
 
@@ -170,6 +202,38 @@ export function CandidateInfoForm({ isDone,id,tenantId }) {
             )}
           </div>
         ))}
+      </div>
+
+      <div>
+        <label
+          htmlFor="resume"
+          className="mb-1.5 block text-sm font-medium text-slate-700"
+        >
+          Resume <span className="font-normal text-slate-400">(Optional)</span>
+        </label>
+
+        <input
+          id="resume"
+          type="file"
+          accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          onChange={handleResumeChange}
+          disabled={loading}
+          className="block w-full cursor-pointer rounded-lg border border-slate-300 text-sm text-slate-600 file:mr-4 file:border-0 file:bg-slate-100 file:px-4 file:py-2.5 file:text-sm file:font-medium file:text-slate-700 hover:file:bg-slate-200 disabled:opacity-60"
+        />
+
+        <p className="mt-1.5 text-xs text-slate-500">
+          PDF or DOCX, maximum 5 MB.
+        </p>
+
+        {resume && (
+          <p className="mt-2 text-sm text-green-700">
+            Selected: {resume.name}
+          </p>
+        )}
+
+        {resumeError && (
+          <p className="mt-1 text-xs text-red-600">{resumeError}</p>
+        )}
       </div>
 
       {apiError && (

@@ -5,8 +5,11 @@ import { interviewsService } from "@/services";
 import { useAsync } from "@/hooks/useAsync";
 import { DetailSkeleton, ErrorState } from "@/components/common/States";
 import { VideoModal } from "@/components/media/VideoModal";
-import { ResumeModal } from "@/components/media/Resume";
+import { ResumeDocument, ResumeModal } from "@/components/media/Resume";
 import { CandidateHeader } from "./CandidateHeader";
+import { Button } from "../ui/button";
+import { Eye,Download } from "lucide-react";
+import { Panel } from "../common/Layout";
 import {
   OverviewTab,
   SkillsTab,
@@ -15,6 +18,7 @@ import {
   RecordingTab,
 } from "./DetailTabs";
 import { useSession } from "@/context/SessionContext";
+import { div } from "three/src/nodes/math/OperatorNode.js";
 
 export const TABS = [
   { key: "overview", label: "Overview", C: OverviewTab },
@@ -34,7 +38,7 @@ export function InterviewDetail({ id, onBack }) {
   );
 
 
-  console.log(data,"data");
+  console.log(data, "data");
 
   const [tab, setTab] = useState("overview");
   const [video, setVideo] = useState({ open: false, at: 0 });
@@ -44,16 +48,17 @@ export function InterviewDetail({ id, onBack }) {
   if (error) return <ErrorState error={error} onRetry={reload} />;
 
   const Active = TABS.find((t) => t.key === tab)?.C ?? OverviewTab;
+  const resume = data?.candidate?.interviewcandidate?.resume;
+  const candidate = data?.candidate?.interviewcandidate;
+  const openVideo = (at = 0) => {
+    const urls = data?.candidate?.videoUrls;
+    console.log(data.candidate.videoUrls, "videosssss")
+    const hasVideo = Array.isArray(urls) ? urls.length > 0 : Boolean(urls);
 
-const openVideo = (at = 0) => {
-  const urls = data?.candidate?.videoUrls;
-  console.log(data.candidate.videoUrls,"videosssss")
-  const hasVideo = Array.isArray(urls) ? urls.length > 0 : Boolean(urls);
+    if (!hasVideo) return;
 
-  if (!hasVideo) return;
-
-  setVideo({ open: true, at });
-};
+    setVideo({ open: true, at });
+  };
 
   return (
     <div className="space-y-5" data-testid="interview-detail">
@@ -101,28 +106,71 @@ const openVideo = (at = 0) => {
         </motion.div>
       </AnimatePresence>
 
-     {
-      tab === "overview" &&
-      <>
-       <VideoModal
-        open={video?.open}
-        startAt={video?.at}
-        onOpenChange={(open) =>
-          setVideo((v) => ({ ...v, open }))
-        }
-        recording={data?.candidate}
-        interview={data?.candidate}
-        messages={data?.candidate?.Message}
-      />
+      {
+        tab === "overview" &&
+        <>
+          <VideoModal
+            open={video?.open}
+            startAt={video?.at}
+            onOpenChange={(open) =>
+              setVideo((v) => ({ ...v, open }))
+            }
+            recording={data?.candidate}
+            interview={data?.candidate}
+            messages={data?.candidate?.Message}
+          />
+          {resume && (
+              <Panel
+                title="Resume"
+                description={resume?.fileName}
+                actions={
+                  resume && (
+                    <div className="flex gap-1.5">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setResumeOpen(true)}
+                        data-testid="profile-view-resume-button"
+                      >
+                        <Eye className="mr-1.5 h-3.5 w-3.5" />
+                        View
+                      </Button>
 
-      <ResumeModal
-        open={resumeOpen}
-        onOpenChange={setResumeOpen}
-        resume={data?.candidate?.resume}
-        candidate={data?.candidate?.resume}
-      />
-      </>
-     }
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => downloadResume(resume)}
+                        data-testid="profile-download-resume-button"
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  )
+                }
+                bodyClassName="bg-slate-100 p-4"
+              >
+                {resume ? (
+                  <ResumeDocument
+                    resume={resume}
+                    name={candidate}
+                    contact={`${candidate.email ?? ""}${candidate.location ? ` · ${candidate.location}` : ""}`}
+                    className="px-6 py-6"
+                  />
+                ) : (
+                  <p className="py-8 text-center text-sm text-slate-500">
+                    No resume provided.
+                  </p>
+                )}
+              </Panel>
+          )}
+          <ResumeModal
+            open={resumeOpen}
+            onOpenChange={setResumeOpen}
+            resume={data?.candidate?.interviewcandidate?.resume}
+            candidate={data?.candidate?.interviewcandidate}
+          />
+        </>
+      }
     </div>
   );
 }

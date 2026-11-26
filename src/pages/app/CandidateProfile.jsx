@@ -44,7 +44,7 @@ import { useSession } from "@/context/SessionContext";
 
 export default function CandidateProfilePage() {
   const { id } = useParams();
-  const {can,role} = useSession();
+  const { can, role } = useSession();
   const {
     data,
     loading,
@@ -121,21 +121,21 @@ export default function CandidateProfilePage() {
 
       latestReport: report
         ? {
-            interviewId: reportInterview.id,
-            role: reportInterview.role ?? report.role ?? "Interview",
-            score: report.score ?? reportInterview.score ?? 0,
-            recommendation: report.recommendation ?? "PENDING",
-            summary: report.summary ?? "",
-            skills: Array.isArray(report.skills)
-              ? report.skills
-              : [],
-          }
+          interviewId: reportInterview.id,
+          role: reportInterview.role ?? report.role ?? "Interview",
+          score: report.score ?? reportInterview.score ?? 0,
+          recommendation: report.recommendation ?? "PENDING",
+          summary: report.summary ?? "",
+          skills: Array.isArray(report.skills)
+            ? report.skills
+            : [],
+        }
         : null,
     };
   }, [data]);
 
   return (
-        <>
+    <>
       <Link
         to="/app/candidates"
         className="mb-5 inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900"
@@ -358,6 +358,7 @@ export default function CandidateProfilePage() {
             />
           </div>
         );
+
       })()}
     </>
   );

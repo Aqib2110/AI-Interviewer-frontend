@@ -123,7 +123,10 @@ export const interviewsService = {
     compName: payload.company,
     description: payload.description,
     skills: payload.skills,
-    durationMinutes: payload.durationMinutes
+    durationMinutes: payload.durationMinutes,
+    evalutionCriteria:payload.criteria,
+    interviewType:payload.interviewType,
+    experienceLevel:payload.experienceLevel
     }),
    });
     }
@@ -136,7 +139,10 @@ export const interviewsService = {
     description: payload.description,
     skills: payload.skills,
     email: payload.candidateEmail,
-    durationMinutes: payload.durationMinutes
+    durationMinutes: payload.durationMinutes,
+     evalutionCriteria:payload.criteria,
+    interviewType:payload.interviewType,
+    experienceLevel:payload.experienceLevel
     }),
    });
   },
